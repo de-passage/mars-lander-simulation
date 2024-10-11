@@ -1,5 +1,6 @@
 #include "game_data.hpp"
 #include "gui.hpp"
+#include "load_file.hpp"
 
 #include <SFML/Graphics.hpp>
 #include <imgui-SFML.h>
@@ -17,9 +18,10 @@ int main(int argc, const char *argv[]) try {
   if (argc == 2 && fs::exists(argv[1])) {
     data.current_file = fs::path(argv[1]);
   }
-  assert(false);
   if (data.current_file) {
-    data.coordinates = load_line(data.current_file.value());
+    auto loaded = load_file(data.current_file.value());
+    data.update_coordinates(std::move(loaded.line));
+    data.initial = loaded.data;
   }
 
   constexpr int INIT_WIDTH = 800;

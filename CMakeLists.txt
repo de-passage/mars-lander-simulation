@@ -10,7 +10,7 @@ find_package(SFML 2.6 COMPONENTS graphics window system CONFIG REQUIRED)
 find_package(ImGui-SFML CONFIG REQUIRED)
 
 set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set(SOURCE_LIST main.cpp gui.cpp)
+set(SOURCE_LIST main.cpp gui.cpp game_data.cpp load_file.cpp)
 list(TRANSFORM SOURCE_LIST PREPEND ${SOURCE_DIR}/)
 
 add_executable(mars-visualizer ${SOURCE_LIST})

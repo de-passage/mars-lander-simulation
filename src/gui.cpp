@@ -1,24 +1,8 @@
 #include "gui.hpp"
 #include "game_data.hpp"
+#include "load_file.hpp"
 #include <algorithm>
-#include <fstream>
 #include <imgui.h>
-
-coordinate_list load_line(const fs::path &path) {
-  std::ifstream file(path);
-  if (!file.is_open()) {
-    throw std::runtime_error("Could not open file: " + path.string());
-  }
-
-  coordinate_list line;
-
-  int x, y;
-  while (file >> x >> y) {
-    line.push_back(coordinates{x, y});
-  }
-
-  return line;
-}
 
 void draw_file_selection(game_data &data) {
   if (ImGui::Begin("File Selection")) {
@@ -35,7 +19,9 @@ void draw_file_selection(game_data &data) {
       for (const auto &file : paths) {
         if (ImGui::Selectable(file.filename().string().c_str())) {
           data.current_file = file;
-          data.updated_coordinates(load_line(file));
+          auto loaded = load_file(file);
+          data.update_coordinates(std::move(loaded.line));
+          data.initial = loaded.data;
         }
       }
     }
@@ -46,6 +32,12 @@ void draw_file_selection(game_data &data) {
 void draw_gui(game_data &data) {
   // Example ImGui window
   if (ImGui::Begin("Coordinates")) {
+
+    ImGui::Text("Position: %d, %d", data.initial.position.x, data.initial.position.y);
+    ImGui::Text("Velocity: %d, %d", data.initial.velocity.x, data.initial.velocity.y);
+    ImGui::Text("Fuel: %d", data.initial.fuel);
+    ImGui::Text("Rotate: %d", data.initial.rotate);
+    ImGui::Text("Power: %d", data.initial.power);
 
     if (ImGui::BeginTable("table-coordinates", 2,
                           ImGuiTableFlags_SizingStretchProp)) {

@@ -5,3 +5,4 @@ install-*/
 .*
 !.gitignore
 *.ini
+core

@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 55644b04..79b4c0bc 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2,6 +2,8 @@
+ 
+ cmake_minimum_required(VERSION 3.0.2)
+ 
++set(CMAKE_CXX_STANDARD 17)
++
+ if(APPLE)
+     # The workaround for try_compile failing with code signing
+     # since cmake-3.18.2, not required

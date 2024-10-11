@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "dependencies": [
+    "sfml",
+    "imgui",
+    "imgui-sfml"
+  ],
+  "vcpkg-configuration": {
+    "overlay-ports": [
+      "support/ports"
+    ]
+  }
+}

@@ -21,7 +21,7 @@ void draw_file_selection(game_data &data) {
           data.current_file = file;
           auto loaded = load_file(file);
           data.update_coordinates(std::move(loaded.line));
-          data.initial = loaded.data;
+          data.set_initial_parameters(loaded.data);
         }
       }
     }
@@ -33,11 +33,22 @@ void draw_gui(game_data &data) {
   // Example ImGui window
   if (ImGui::Begin("Coordinates")) {
 
-    ImGui::Text("Position: %d, %d", data.initial.position.x, data.initial.position.y);
-    ImGui::Text("Velocity: %d, %d", data.initial.velocity.x, data.initial.velocity.y);
-    ImGui::Text("Fuel: %d", data.initial.fuel);
-    ImGui::Text("Rotate: %d", data.initial.rotate);
-    ImGui::Text("Power: %d", data.initial.power);
+    ImGui::Columns(2);
+    ImGui::Text("Initial Position: %d, %d", data.initial.position.x, data.initial.position.y);
+    ImGui::Text("Initial Velocity: %d, %d", data.initial.velocity.x, data.initial.velocity.y);
+    ImGui::Text("Initial Fuel: %d", data.initial.fuel);
+    ImGui::Text("Initial Rotate: %d", data.initial.rotate);
+    ImGui::Text("Initial Power: %d", data.initial.power);
+
+    ImGui::NextColumn();
+
+    ImGui::Text("Position: %d, %d", data.current.position.x, data.current.position.y);
+    ImGui::Text("Velocity: %d, %d", data.current.velocity.x, data.current.velocity.y);
+    ImGui::Text("Fuel: %d", data.current.fuel);
+    ImGui::Text("Rotate: %d", data.current.rotate);
+    ImGui::Text("Power: %d", data.current.power);
+
+    ImGui::Columns(1);
 
     if (ImGui::BeginTable("table-coordinates", 2,
                           ImGuiTableFlags_SizingStretchProp)) {

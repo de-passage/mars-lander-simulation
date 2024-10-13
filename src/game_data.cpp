@@ -20,3 +20,8 @@ void game_data::update_coordinates(const coordinate_list &new_coordinates) {
   }
   line = std::move(vertices);
 }
+
+void game_data::set_initial_parameters(const simulation_data &initial_data) {
+  initial = initial_data;
+  current = initial_data;
+}

@@ -30,6 +30,8 @@ struct game_data {
   sf::VertexArray line;
 
   simulation_data initial;
+  simulation_data current;
 
   void update_coordinates(const coordinate_list &new_coordinates);
+  void set_initial_parameters(const simulation_data &initial_data);
 };

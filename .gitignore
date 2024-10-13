@@ -6,3 +6,4 @@ install-*/
 !.gitignore
 *.ini
 core
+vcpkg_*

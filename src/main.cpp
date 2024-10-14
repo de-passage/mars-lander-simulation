@@ -71,11 +71,11 @@ int main(int argc, const char *argv[]) try {
     ImGui::SFML::Update(window, deltaClock.restart());
     draw_gui(data, lander);
 
-    if (data.simu.status == simulation::status::running) {
+    if (data.simu.is_running()) {
       auto elapsed = clock::now() - last_time;
       data.simu.tick(elapsed);
-      last_time = clock::now();
     }
+    last_time = clock::now();
     lander.update();
 
     // Clear SFML window

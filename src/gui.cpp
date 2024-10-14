@@ -31,6 +31,8 @@ std::string_view to_string(enum simulation::status status) {
     return "Paused";
   case simulation::status::running:
     return "Running";
+  case simulation::status::stopped:
+    return "Stopped";
   }
   return "Unknown";
 }
@@ -38,24 +40,28 @@ std::string_view to_string(enum simulation::status status) {
 void draw_gui(game_data &data, const lander &lander) {
   // Example ImGui window
   if (ImGui::Begin("Coordinates")) {
-    ImGui::Text("Status: %s", to_string(data.simu.status).data());
+    ImGui::Text("Status: %s", to_string(data.simu.current_status()).data());
 
     if (data.current_file) {
       ImGui::Text("File: %s", data.current_file->filename().string().c_str());
       ImGui::Text("Elapsed Time: %d", data.simu.tick_count);
       ImGui::Spacing();
-      if (data.simu.status == simulation::status::running) {
+
+      if (data.simu.current_status() == simulation::status::running) {
         if (ImGui::Button("Pause")) {
-          data.simu.status = simulation::status::paused;
+          data.simu.pause();
         }
-      } else if (data.simu.status == simulation::status::paused) {
+      } else if (data.simu.current_status() == simulation::status::paused) {
         if (ImGui::Button("Resume")) {
-          data.simu.status = simulation::status::running;
+          data.simu.run();
         }
-      } else if (data.simu.status == simulation::status::landed ||
-                 data.simu.status == simulation::status::crashed) {
+      } else if (data.simu.current_status() == simulation::status::stopped) {
+        if (ImGui::Button("Start")) {
+          data.simu.run();
+        }
+      } else if (data.simu.current_status() == simulation::status::landed ||
+                 data.simu.current_status() == simulation::status::crashed) {
         if (ImGui::Button("Restart")) {
-          data.simu.status = simulation::status::running;
           data.simu.set_data(data.initial);
         }
       }
@@ -65,33 +71,89 @@ void draw_gui(game_data &data, const lander &lander) {
       }
 
       ImGui::Separator();
+
+      static int selected_frame = 0;
+      bool changed = false;
+      int last_selected = selected_frame;
+      bool disable_backward = selected_frame == 0;
+      bool disable_forward = selected_frame == data.simu.history.size() - 1;
+
+      ImGui::Text("History size: %zu", data.simu.history.size());
+      if (disable_backward)
+      {
+        ImGui::BeginDisabled();
+      }
+      if (ImGui::Button("<")) {
+        selected_frame--;
+        changed = true;
+        if (selected_frame < 0) {
+          selected_frame = 0;
+        }
+      }
+      if (disable_backward)
+      {
+        ImGui::EndDisabled();
+      }
+      ImGui::SameLine();
+      if (ImGui::SliderInt("##History", &selected_frame, 0, data.simu.history.size() - 1)) {
+        // ImGui::Text("Selected frame: %d", selected_frame);
+      }
+      if (!ImGui::IsItemActive()) {
+        if (data.simu.is_running()) {
+          selected_frame = data.simu.history.size() - 1;
+        }
+      } else {
+        changed = true;
+      }
+      ImGui::SameLine();
+      if (disable_forward)
+      {
+        ImGui::BeginDisabled();
+      }
+      if (ImGui::Button(">")) {
+        selected_frame++;
+        changed = true;
+        if (selected_frame >= data.simu.history.size()) {
+          selected_frame = data.simu.history.size() - 1;
+        }
+      }
+      if (disable_forward)
+      {
+        ImGui::EndDisabled();
+      }
+      if (changed) {
+        data.simu.set_history_point(selected_frame);
+      }
+
+      ImGui::Separator();
+
       ImGui::Columns(2);
 
-      ImGui::Text("Position: %d, %d", data.simu.data.position.x,
-                  data.simu.data.position.y);
-      ImGui::Text("Velocity: %d, %d", data.simu.data.velocity.x,
-                  data.simu.data.velocity.y);
-      ImGui::Text("Fuel: %d", data.simu.data.fuel);
-      ImGui::Text("Rotate: %d", data.simu.data.rotate);
-      ImGui::Text("Power: %d", data.simu.data.power);
+      ImGui::Text("Position: %d, %d", data.simu.current_data().position.x,
+                  data.simu.current_data().position.y);
+      ImGui::Text("Velocity: %.1f, %.1f", data.simu.current_data().velocity.x,
+                  data.simu.current_data().velocity.y);
+      ImGui::Text("Fuel: %d", data.simu.current_data().fuel);
+      ImGui::Text("Rotate: %d", data.simu.current_data().rotate);
+      ImGui::Text("Power: %d", data.simu.current_data().power);
 
       ImGui::NextColumn();
 
       ImGui::Text("Initial Position: %d, %d", data.initial.position.x,
                   data.initial.position.y);
-      ImGui::Text("Initial Velocity: %d, %d", data.initial.velocity.x,
+      ImGui::Text("Initial Velocity: %.0f, %.0f", data.initial.velocity.x,
                   data.initial.velocity.y);
       ImGui::Text("Initial Fuel: %d", data.initial.fuel);
       ImGui::Text("Initial Rotate: %d", data.initial.rotate);
       ImGui::Text("Initial Power: %d", data.initial.power);
 
       ImGui::Columns(1);
-      ImGui::Text("Lander Logical Position: %f, %f", lander.current_position().x,
+      ImGui::Text("Lander Logical Position: %.2f, %.2f", lander.current_position().x,
                   lander.current_position().y);
-      ImGui::Text("Lander Logical Rotation: %f", lander.current_rotation());
-      ImGui::Text("Lander Screen Coordinates: %f, %f", lander.triangle_position().x,
+      ImGui::Text("Lander Logical Rotation: %.2f", lander.current_rotation());
+      ImGui::Text("Lander Screen Coordinates: %.2f, %.2f", lander.triangle_position().x,
                   lander.triangle_position().y);
-      ImGui::Text("Lander Screen Rotation: %f", lander.triangle_rotation());
+      ImGui::Text("Lander Screen Rotation: %.2f", lander.triangle_rotation());
       ImGui::Separator();
 
       if (ImGui::BeginTable("table-coordinates", 2,

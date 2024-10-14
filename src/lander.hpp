@@ -2,6 +2,7 @@
 
 #include "game_data.hpp"
 #include <SFML/Graphics.hpp>
+#include <SFML/System/Vector2.hpp>
 
 class lander : public sf::Drawable {
 
@@ -14,8 +15,22 @@ public:
 
   void update();
 
+  inline sf::Vector2f triangle_position() const {
+    return lander_triangle.getPosition();
+  }
+  inline float triangle_rotation() const {
+    return lander_triangle.getRotation();
+  }
+
+  inline sf::Vector2f current_position() const {
+    return data.adjusted_position;
+  }
+  inline float current_rotation() const {
+    return data.adjusted_rotation;
+  }
+
 private:
-  simulation_data &data;
+  simulation &data;
   unsigned int height;
   unsigned int width;
 

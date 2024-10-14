@@ -69,12 +69,15 @@ int main(int argc, const char *argv[]) try {
 
     // Start new ImGui frame
     ImGui::SFML::Update(window, deltaClock.restart());
-    draw_gui(data);
+    draw_gui(data, lander);
 
     if (data.simu.status == simulation::status::running) {
       auto elapsed = clock::now() - last_time;
       data.simu.tick(elapsed);
+      last_time = clock::now();
     }
+    lander.update();
+
     // Clear SFML window
     window.clear();
 
@@ -82,8 +85,6 @@ int main(int argc, const char *argv[]) try {
       window.draw(lander);
       window.draw(data.line);
     }
-    lander.update();
-    last_time = clock::now();
     ImGui::SFML::Render(window);
 
     // Display the SFML window

@@ -1,8 +1,9 @@
 #include "lander.hpp"
 #include "constants.hpp"
+#include <iostream>
 
 lander::lander(game_data &data)
-    : data{data.simu.data}, height{data.view_size.y}, width{data.view_size.x} {
+    : data{data.simu}, height{data.view_size.y}, width{data.view_size.x} {
   create_shapes();
 }
 
@@ -15,21 +16,18 @@ void lander::update() {
   auto position = calculate_position();
   lander_triangle.setPosition(position);
   lander_bottom.setPosition(position.x, position.y);
-  lander_triangle.setRotation(data.rotate);
-  lander_bottom.setRotation(data.rotate);
+  lander_triangle.setRotation(data.adjusted_rotation);
+  lander_bottom.setRotation(data.adjusted_rotation);
 }
 
 sf::Vector2f lander::calculate_position() {
-  const float window_width = static_cast<float>(height);
-  const float window_height = static_cast<float>(width);
+  const float window_width = static_cast<float>(width);
+  const float window_height = static_cast<float>(height);
 
   sf::Vector2f position;
-  position.x =
-      (static_cast<double>(data.position.x) / static_cast<double>(GAME_WIDTH)) *
-      window_width;
-  position.y = (1.0f - (static_cast<float>(data.position.y) /
-                        static_cast<double>(GAME_HEIGHT))) *
-               window_height;
+  position.x = (data.adjusted_position.x / static_cast<float>(GAME_WIDTH)) * window_width;
+  position.y =
+      (1.0f - (data.adjusted_position.y / static_cast<float>(GAME_HEIGHT))) * window_height;
   return position;
 }
 
@@ -57,3 +55,4 @@ void lander::create_shapes() {
   bottom_marker.setOrigin(lander_size / 2.f, 0.f);
   lander_bottom = bottom_marker;
 }
+

@@ -1,5 +1,6 @@
 #include "gui.hpp"
 #include "game_data.hpp"
+#include "lander.hpp"
 #include "load_file.hpp"
 #include <imgui.h>
 #include <string_view>
@@ -34,7 +35,7 @@ std::string_view to_string(enum simulation::status status) {
   return "Unknown";
 }
 
-void draw_gui(game_data &data) {
+void draw_gui(game_data &data, const lander &lander) {
   // Example ImGui window
   if (ImGui::Begin("Coordinates")) {
     ImGui::Text("Status: %s", to_string(data.simu.status).data());
@@ -85,18 +86,24 @@ void draw_gui(game_data &data) {
       ImGui::Text("Initial Power: %d", data.initial.power);
 
       ImGui::Columns(1);
+      ImGui::Text("Lander Logical Position: %f, %f", lander.current_position().x,
+                  lander.current_position().y);
+      ImGui::Text("Lander Logical Rotation: %f", lander.current_rotation());
+      ImGui::Text("Lander Screen Coordinates: %f, %f", lander.triangle_position().x,
+                  lander.triangle_position().y);
+      ImGui::Text("Lander Screen Rotation: %f", lander.triangle_rotation());
       ImGui::Separator();
 
       if (ImGui::BeginTable("table-coordinates", 2,
                             ImGuiTableFlags_SizingStretchProp)) {
         ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthFixed);
         ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthFixed);
-        for (size_t i = 0; i < data.coordinates.size(); ++i) {
+        for (auto& coord : data.coordinates()) {
           ImGui::TableNextRow();
           ImGui::TableNextColumn();
-          ImGui::Text("%d", data.coordinates[i].x);
+          ImGui::Text("%d", coord.x);
           ImGui::TableNextColumn();
-          ImGui::Text("%d", data.coordinates[i].y);
+          ImGui::Text("%d", coord.y);
         }
       }
       ImGui::EndTable();

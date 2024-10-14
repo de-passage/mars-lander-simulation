@@ -6,34 +6,39 @@
 #include <imgui-SFML.h>
 #include <imgui.h>
 
+#include "lander.hpp"
 #include <filesystem>
 #include <iostream>
 #include <optional>
-#include "lander.hpp"
-
-
 
 int main(int argc, const char *argv[]) try {
+
+  constexpr int INIT_WIDTH = 800;
+  constexpr int INIT_HEIGHT = 600;
 
   game_data data;
 
   if (argc == 2 && fs::exists(argv[1])) {
     data.current_file = fs::path(argv[1]);
   }
-  if (data.current_file) {
-    auto loaded = load_file(data.current_file.value());
-    data.update_coordinates(std::move(loaded.line));
-    data.set_initial_parameters(loaded.data);
-    data.status = game_data::status::paused;
-  }
 
-  constexpr int INIT_WIDTH = 800;
-  constexpr int INIT_HEIGHT = 600;
-
-  // Create SFML window
   sf::RenderWindow window(sf::VideoMode(INIT_WIDTH, INIT_HEIGHT),
                           "SFML + ImGui Example");
   data.view_size = window.getSize();
+
+  if (data.current_file) {
+    auto loaded = load_file(data.current_file.value());
+    data.initialize(loaded);
+  } else {
+    auto paths = path_list(data.resource_path);
+    if (!paths.empty()) {
+      data.current_file = paths.front();
+      auto loaded = load_file(data.current_file.value());
+      data.initialize(loaded);
+    }
+  }
+
+  // Create SFML window
   window.setFramerateLimit(60);
 
   lander lander{data};
@@ -70,17 +75,16 @@ int main(int argc, const char *argv[]) try {
       auto elapsed = clock::now() - last_time;
       data.current.tick(elapsed);
     }
-    last_time = clock::now();
-    lander.update();
     // Clear SFML window
     window.clear();
 
-    // Render ImGui
-    window.draw(data.line);
 
     if (data.current_file) {
       window.draw(lander);
+      window.draw(data.line);
     }
+    lander.update();
+    last_time = clock::now();
     ImGui::SFML::Render(window);
 
     // Display the SFML window

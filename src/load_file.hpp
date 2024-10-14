@@ -7,4 +7,4 @@ struct file_data {
   coordinate_list line;
 };
 file_data load_file(const fs::path &path);
-
+std::vector<std::filesystem::path> path_list(const std::filesystem::path &source);

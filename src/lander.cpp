@@ -1,4 +1,5 @@
 #include "lander.hpp"
+#include "constants.hpp"
 void lander::draw(sf::RenderTarget &target, sf::RenderStates states) const {
   target.draw(lander_triangle, states);
   target.draw(lander_bottom, states);
@@ -49,4 +50,3 @@ void lander::create_shapes() {
   bottom_marker.setOrigin(lander_size / 2.f, 0.f);
   lander_bottom = bottom_marker;
 }
-

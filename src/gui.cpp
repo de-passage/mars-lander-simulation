@@ -1,29 +1,18 @@
 #include "gui.hpp"
 #include "game_data.hpp"
 #include "load_file.hpp"
-#include <algorithm>
 #include <imgui.h>
 #include <string_view>
 
 void draw_file_selection(game_data &data) {
   if (ImGui::Begin("File Selection")) {
     if (fs::exists(data.resource_path)) {
-      auto files = fs::directory_iterator(data.resource_path);
-      std::vector<fs::path> paths;
-
-      for (const auto &file : files) {
-        if (file.is_regular_file()) {
-          paths.push_back(file.path());
-        }
-      }
-      std::ranges::sort(paths);
+      auto paths = path_list(data.resource_path);
       for (const auto &file : paths) {
         if (ImGui::Selectable(file.filename().string().c_str())) {
           data.current_file = file;
           auto loaded = load_file(file);
-          data.update_coordinates(std::move(loaded.line));
-          data.set_initial_parameters(loaded.data);
-          data.status = game_data::status::paused;
+          data.initialize(loaded);
         }
       }
     }
@@ -51,6 +40,9 @@ void draw_gui(game_data &data) {
     ImGui::Text("Status: %s", to_string(data.status).data());
 
     if (data.current_file) {
+      ImGui::Text("File: %s", data.current_file->filename().string().c_str());
+      ImGui::Text("Elapsed Time: %d", data.current.tick_count);
+      ImGui::Spacing();
       if (data.status == game_data::status::running) {
         if (ImGui::Button("Pause")) {
           data.status = game_data::status::paused;
@@ -66,10 +58,12 @@ void draw_gui(game_data &data) {
           data.current = data.initial;
         }
       }
+      ImGui::SameLine();
       if (ImGui::Button("Reset")) {
         data.current = data.initial;
       }
 
+      ImGui::Separator();
       ImGui::Columns(2);
       ImGui::Text("Initial Position: %d, %d", data.initial.position.x,
                   data.initial.position.y);
@@ -90,6 +84,7 @@ void draw_gui(game_data &data) {
       ImGui::Text("Power: %d", data.current.power);
 
       ImGui::Columns(1);
+      ImGui::Separator();
 
       if (ImGui::BeginTable("table-coordinates", 2,
                             ImGuiTableFlags_SizingStretchProp)) {

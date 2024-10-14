@@ -26,3 +26,16 @@ file_data load_file(const fs::path &path) {
       .line = std::move(line),
   };
 }
+
+std::vector<fs::path> path_list(const fs::path &source) {
+  auto files = fs::directory_iterator(source);
+  std::vector<fs::path> paths;
+
+  for (const auto &file : files) {
+    if (file.is_regular_file()) {
+      paths.push_back(file.path());
+    }
+  }
+  std::ranges::sort(paths);
+  return paths;
+}

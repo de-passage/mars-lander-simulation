@@ -129,7 +129,7 @@ void draw_gui(game_data &data, const lander &lander) {
 
       ImGui::Columns(2);
 
-      ImGui::Text("Position: %d, %d", data.simu.current_data().position.x,
+      ImGui::Text("Position: %.2f, %.2f", data.simu.current_data().position.x,
                   data.simu.current_data().position.y);
       ImGui::Text("Velocity: %.1f, %.1f", data.simu.current_data().velocity.x,
                   data.simu.current_data().velocity.y);
@@ -139,7 +139,7 @@ void draw_gui(game_data &data, const lander &lander) {
 
       ImGui::NextColumn();
 
-      ImGui::Text("Initial Position: %d, %d", data.initial.position.x,
+      ImGui::Text("Initial Position: %.0f, %.0f", data.initial.position.x,
                   data.initial.position.y);
       ImGui::Text("Initial Velocity: %.0f, %.0f", data.initial.velocity.x,
                   data.initial.velocity.y);
@@ -163,9 +163,9 @@ void draw_gui(game_data &data, const lander &lander) {
         for (auto& coord : data.coordinates()) {
           ImGui::TableNextRow();
           ImGui::TableNextColumn();
-          ImGui::Text("%d", coord.x);
+          ImGui::Text("%.0f", coord.x);
           ImGui::TableNextColumn();
-          ImGui::Text("%d", coord.y);
+          ImGui::Text("%.0f", coord.y);
         }
       }
       ImGui::EndTable();

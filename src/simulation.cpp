@@ -125,8 +125,7 @@ void simulation::compute_next_tick() {
                          MARS_GRAVITY;
   next_data.position =
       current.position +
-      decltype(current.position){static_cast<int>(current.velocity.x),
-                                 static_cast<int>(current.velocity.y)};
+      ::coordinates{current.velocity.x, current.velocity.y};
 
   adjusted_position = {static_cast<float>(current.position.x),
                        static_cast<float>(current.position.y)};

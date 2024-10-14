@@ -4,7 +4,7 @@
 #include <vector>
 #include "math.hpp"
 
-using coordinates = sf::Vector2i;
+using coordinates = sf::Vector2f;
 using coordinate_list = std::vector<coordinates>;
 
 static_assert(Arithmetic<decltype(coordinates::x)>);

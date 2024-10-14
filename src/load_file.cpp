@@ -18,7 +18,7 @@ file_data load_file(const fs::path &path) {
 
   int x, y;
   while (file >> x >> y) {
-    line.push_back(coordinates{x, y});
+    line.push_back(coordinates{static_cast<float>(x), static_cast<float>(y)});
   }
 
   return {

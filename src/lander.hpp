@@ -8,10 +8,7 @@ class lander : public sf::Drawable {
   const float lander_size = 20.f;
 
 public:
-  lander(game_data &data)
-      : data{data.current}, height{data.view_size.y}, width{data.view_size.x} {
-    create_shapes();
-  }
+  lander(game_data &data);
   virtual void draw(sf::RenderTarget &target,
                     sf::RenderStates states) const override;
 

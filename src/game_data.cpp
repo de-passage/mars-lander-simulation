@@ -8,9 +8,8 @@ void game_data::initialize(file_data &loaded) {
 }
 
 void game_data::reset_simulation() {
-  current = initial;
-  status = game_data::status::paused;
-  current.tick_count = 0;
+  simu.set_data(initial);
+  simu.tick_count = 0;
 }
 
 void game_data::update_coordinates(coordinate_list new_coordinates) {
@@ -38,7 +37,7 @@ void game_data::set_initial_parameters(const simulation_data &initial_data) {
   initial = initial_data;
   reset_simulation();
 }
-void simulation_data::tick(duration delta) {
+void simulation::tick(duration delta) {
   using namespace std::chrono_literals;
   elapsed_time += delta;
   double ratio = delta.count() / 1000000000.;
@@ -46,10 +45,17 @@ void simulation_data::tick(duration delta) {
   if (elapsed_time >= 1s) {
     tick_count++;
     elapsed_time -= 1s;
-    fuel -= power;
-    velocity.y -= MARS_GRAVITY;
-    velocity.x += power * std::cos(rotate * DEG_TO_RAD);
-    velocity.y += power * std::sin(rotate * DEG_TO_RAD);
-    position += {static_cast<int>(velocity.x), static_cast<int>(velocity.y)};
+    data.fuel -= data.power;
+    data.velocity.y -= MARS_GRAVITY;
+    data.velocity.x += data.power * std::cos(data.rotate * DEG_TO_RAD);
+    data.velocity.y += data.power * std::sin(data.rotate * DEG_TO_RAD);
+    data.position += {static_cast<int>(data.velocity.x), static_cast<int>(data.velocity.y)};
   }
+}
+
+void simulation::set_data(simulation_data new_data) {
+  data = std::move(new_data);
+  elapsed_time = duration{0};
+  tick_count = 0;
+  status = simulation::status::paused;
 }

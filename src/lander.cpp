@@ -1,9 +1,16 @@
 #include "lander.hpp"
 #include "constants.hpp"
+
+lander::lander(game_data &data)
+    : data{data.simu.data}, height{data.view_size.y}, width{data.view_size.x} {
+  create_shapes();
+}
+
 void lander::draw(sf::RenderTarget &target, sf::RenderStates states) const {
   target.draw(lander_triangle, states);
   target.draw(lander_bottom, states);
 }
+
 void lander::update() {
   auto position = calculate_position();
   lander_triangle.setPosition(position);

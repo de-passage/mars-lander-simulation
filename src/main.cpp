@@ -13,8 +13,8 @@
 
 int main(int argc, const char *argv[]) try {
 
-  constexpr int INIT_WIDTH = 800;
-  constexpr int INIT_HEIGHT = 600;
+  constexpr int INIT_WIDTH = 700*1.5;
+  constexpr int INIT_HEIGHT = 300*1.5;
 
   game_data data;
 
@@ -71,13 +71,12 @@ int main(int argc, const char *argv[]) try {
     ImGui::SFML::Update(window, deltaClock.restart());
     draw_gui(data);
 
-    if (data.status == game_data::status::running) {
+    if (data.simu.status == simulation::status::running) {
       auto elapsed = clock::now() - last_time;
-      data.current.tick(elapsed);
+      data.simu.tick(elapsed);
     }
     // Clear SFML window
     window.clear();
-
 
     if (data.current_file) {
       window.draw(lander);

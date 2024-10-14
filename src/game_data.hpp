@@ -18,11 +18,19 @@ struct simulation_data {
   int fuel;
   int rotate; //< degrees, 90 to -90
   int power;  //< 0 to 4
+};
 
+struct simulation {
   using duration = std::chrono::nanoseconds;
   duration elapsed_time{0};
   int tick_count{0};
   void tick(duration delta);
+
+  void set_data(simulation_data data);
+
+  enum class status { crashed, running, landed, paused } status{status::paused};
+
+  simulation_data data;
 };
 
 struct game_data {
@@ -34,9 +42,7 @@ struct game_data {
   sf::VertexArray line;
 
   simulation_data initial;
-  simulation_data current;
-
-  enum class status { crashed, running, landed, paused } status{status::paused};
+  simulation simu;
 
   void update_coordinates(coordinate_list new_coordinates);
   void set_initial_parameters(const simulation_data &initial_data);

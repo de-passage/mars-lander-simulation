@@ -15,36 +15,70 @@
 
 void play_simulation(game_data &game, lander &lander);
 
+template <class Data>
+void handle_events(sf::RenderWindow &window, const sf::Event &event,
+                   Data &world) {
+  if (event.type == sf::Event::Closed) {
+    window.close();
+  } else if (event.type == sf::Event::KeyPressed) {
+    if (event.key.code == sf::Keyboard::C && event.key.control) {
+      // Close the window
+      window.close();
+    }
+  }
+}
+
+template <class Data> void render(sf::RenderWindow &window, Data &world) {
+  draw_gui(world.game);
+
+  if (world.game.current_file) {
+    play_simulation(world.game, world.lander);
+
+    window.draw(world.lander);
+    if (world.game.show_trajectory) {
+      window.draw(world.traj);
+    }
+    window.draw(world.game.line);
+  }
+}
+
+struct data {
+  game_data game;
+  class lander lander;
+  trajectory traj;
+
+  data(view_transform to_screen)
+      : game{to_screen}, lander{game, to_screen}, traj{to_screen} {
+    lander.attach(game.simu);
+    traj.attach(game.simu);
+  }
+};
+
 int main(int argc, const char *argv[]) try {
 
   constexpr int INIT_WIDTH = 700 * 1.5;
   constexpr int INIT_HEIGHT = 300 * 1.5;
 
-  sf::RenderWindow window(sf::VideoMode(INIT_WIDTH, INIT_HEIGHT),
+  sf::RenderWindow window(sf::VideoMode::getDesktopMode(),
                           "SFML + ImGui Example");
   auto window_size = window.getSize();
   view_transform to_screen{window_size.x, window_size.y};
 
-  game_data game{to_screen};
+  data world{to_screen};
 
   if (argc == 2 && fs::exists(argv[1])) {
-    game.current_file = fs::path(argv[1]);
+    world.game.current_file = fs::path(argv[1]);
   }
 
-  lander lander{game, to_screen};
-  lander.attach(game.simu);
-  trajectory traj{to_screen};
-  traj.attach(game.simu);
-
-  if (game.current_file) {
-    auto loaded = load_file(game.current_file.value());
-    game.initialize(loaded);
+  if (world.game.current_file) {
+    auto loaded = load_file(world.game.current_file.value());
+    world.game.initialize(loaded);
   } else {
-    auto paths = path_list(game.resource_path);
+    auto paths = path_list(world.game.resource_path);
     if (!paths.empty()) {
-      game.current_file = paths.front();
-      auto loaded = load_file(game.current_file.value());
-      game.initialize(loaded);
+      world.game.current_file = paths.front();
+      auto loaded = load_file(world.game.current_file.value());
+      world.game.initialize(loaded);
     }
   }
 
@@ -63,32 +97,15 @@ int main(int argc, const char *argv[]) try {
     while (window.pollEvent(event)) {
       ImGui::SFML::ProcessEvent(event);
 
-      if (event.type == sf::Event::Closed) {
-        window.close();
-      } else if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::C && event.key.control) {
-          // Close the window
-          window.close();
-        }
-      }
+      handle_events(window, event, world);
     }
 
     // Start new ImGui frame
     ImGui::SFML::Update(window, deltaClock.restart());
-    draw_gui(game, lander);
 
     // Clear SFML window
     window.clear();
-
-    if (game.current_file) {
-      play_simulation(game, lander);
-
-      window.draw(lander);
-      if (game.show_trajectory) {
-        window.draw(traj);
-      }
-      window.draw(game.line);
-    }
+    render(window, world);
     ImGui::SFML::Render(window);
 
     // Display the SFML window

@@ -12,3 +12,5 @@ constexpr static inline int MAX_POWER = 4;                  // power
 constexpr static inline int MAX_TURN_RATE = 15;
 
 constexpr static inline double DEG_TO_RAD = 0.0174533;      // 1 degree in radians
+
+constexpr static inline int MAX_PLAYBACK_SPEED = 20;

@@ -3,4 +3,4 @@
 #include "game_data.hpp"
 #include "lander.hpp"
 
-void draw_gui(game_data& data, const lander& lander);
+void draw_gui(game_data& data);

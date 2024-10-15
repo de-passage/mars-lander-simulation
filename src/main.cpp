@@ -20,25 +20,27 @@ struct trajectory : sf::Drawable {
       assert(simu.frame_count() > 1);
       line_.clear();
       points_.clear();
-      line_.resize(simu.frame_count());
 
       for (auto hist : simu.history()) {
         auto position = transform_.to_screen(hist.position);
-        sf::CircleShape point(2.);
+        const auto radius = 2.f;
+        sf::CircleShape point(radius);
         point.setFillColor(sf::Color::White);
-        point.setPosition(position - sf::Vector2f{1., 1.});
+        point.setPosition(position - sf::Vector2f{radius, radius});
         points_.push_back(point);
         line_.append(sf::Vertex{position, sf::Color::White});
       }
+      line_.setPrimitiveType(sf::LineStrip);
     });
   }
 
   void draw(sf::RenderTarget &target, sf::RenderStates states) const override {
-    target.draw(line_);
     for (const auto &point : points_) {
       target.draw(point);
     }
+    target.draw(line_);
   }
+
 private:
   view_transform transform_;
 
@@ -131,12 +133,12 @@ int main(int argc, const char *argv[]) try {
             elapsed_ratio);
       }
       last_time = now;
-      window.draw(lander);
-      window.draw(data.line);
 
+      window.draw(lander);
       if (data.show_trajectory) {
         window.draw(traj);
       }
+      window.draw(data.line);
     }
     ImGui::SFML::Render(window);
 

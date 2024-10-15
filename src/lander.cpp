@@ -1,6 +1,5 @@
 #include "lander.hpp"
 #include "constants.hpp"
-#include <iostream>
 
 lander::lander(game_data &data, view_transform transform)
     : transform_{transform} {

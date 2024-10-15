@@ -3,7 +3,8 @@
   "dependencies": [
     "sfml",
     "imgui",
-    "imgui-sfml"
+    "imgui-sfml",
+    "catch2"
   ],
   "vcpkg-configuration": {
     "overlay-ports": [

@@ -3,7 +3,6 @@
 #include "load_file.hpp"
 #include "play.hpp"
 #include <imgui.h>
-#include <iostream>
 
 void game_data::initialize(file_data &loaded) {
   update_coordinates_(std::move(loaded.line));

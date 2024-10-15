@@ -43,15 +43,16 @@ template <Coordinates T> bool on_segment(const segment<T> &s, T &&q) {
 
 template <Coordinates T>
 coordinates_type<T> signed_area_doubled(T &&p1, T &&p2, T &&p3) {
-  return (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
+  return ((p2.x - p1.x) * (p3.y - p1.y)) - ((p2.y - p1.y) * (p3.x - p1.x));
 }
 
 template <Coordinates T>
 bool segments_intersect(const segment<T> &s1, const segment<T> &s2) {
-  int a1 = signed_area_doubled(s1.start, s1.end, s2.start);
-  int a2 = signed_area_doubled(s1.start, s1.end, s2.end);
-  int a3 = signed_area_doubled(s2.start, s2.end, s1.start);
-  int a4 = signed_area_doubled(s2.start, s2.end, s1.end);
+  const auto sign = [](auto a, auto b, auto c) { auto s = signed_area_doubled(a, b, c); return s == 0 ? 0 : s > 0 ? 1 : -1; };
+  int a1 = sign(s1.start, s1.end, s2.start);
+  int a2 = sign(s1.start, s1.end, s2.end);
+  int a3 = sign(s2.start, s2.end, s1.start);
+  int a4 = sign(s2.start, s2.end, s1.end);
 
   return a1 * a2 < 0 && a3 * a4 < 0;
 }

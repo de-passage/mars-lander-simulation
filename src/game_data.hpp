@@ -13,6 +13,11 @@
 namespace fs = std::filesystem;
 
 struct game_data {
+  game_data() = default;
+  constexpr game_data(const game_data &) = delete;
+  constexpr game_data(game_data &&) = delete;
+  constexpr game_data &operator=(const game_data &) = delete;
+  constexpr game_data &operator=(game_data &&) = delete;
   fs::path resource_path{"data"};
   std::optional<fs::path> current_file;
 

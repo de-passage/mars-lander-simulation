@@ -20,7 +20,7 @@ public:
     int next_rotation;
   };
 
-  void update(const update_data& data, float ratio);
+  void update(const update_data &data, float ratio);
 
   inline sf::Vector2f triangle_position() const {
     return lander_triangle.getPosition();
@@ -29,10 +29,9 @@ public:
     return lander_triangle.getRotation();
   }
 
-  inline sf::Vector2f current_position() const {
-    return current_position_;
-  }
+  inline sf::Vector2f current_position() const { return current_position_; }
   inline float current_rotation() const { return current_rotation_; }
+  void attach(simulation &simu);
 
 private:
   coordinates current_position_;
@@ -44,6 +43,6 @@ private:
   sf::RectangleShape lander_bottom;
 
   sf::Vector2f calculate_position_(const coordinates &start,
-                                        const coordinates &end, float ratio);
-  void create_shapes_(const coordinates& start, float rotation);
+                                   const coordinates &end, float ratio);
+  void create_shapes_(const coordinates &start, float rotation);
 };

@@ -79,6 +79,9 @@ void simulation::set_history_point(int index) {
   assert(index < history_.size());
   current_frame_ = index;
   pause();
+  if (on_data_change_) {
+    on_data_change_();
+  }
 }
 
 simulation::next_tick simulation::compute_next_tick_(int from_frame,

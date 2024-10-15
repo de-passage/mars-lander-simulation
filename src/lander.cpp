@@ -4,8 +4,22 @@
 
 lander::lander(game_data &data)
     : height{data.view_size.y}, width{data.view_size.x} {
-  const auto &current = data.simu.current_data();
-  create_shapes_(current.position, current.rotate);
+  assert(height > 0);
+  assert(width > 0);
+  const simulation_data *current;
+  if (data.simu.frame_count() > 0) {
+    current = &data.simu.current_data();
+  } else {
+    static simulation_data default_value = {
+        .position = {GAME_WIDTH / 2., 0},
+        .velocity = {0, 0},
+        .fuel = 100,
+        .rotate = 0,
+        .power = 0,
+    };
+    current = &default_value;
+  }
+  create_shapes_(current->position, current->rotate);
 }
 
 void lander::draw(sf::RenderTarget &target, sf::RenderStates states) const {
@@ -14,16 +28,16 @@ void lander::draw(sf::RenderTarget &target, sf::RenderStates states) const {
 }
 
 void lander::update(const update_data &data, float ratio) {
-  auto position =
+  current_position_ =
       calculate_position_(data.current_position, data.next_position, ratio);
-  lander_triangle.setPosition(position);
-  lander_bottom.setPosition(position);
+  lander_triangle.setPosition(current_position_);
+  lander_bottom.setPosition(current_position_);
 
-  auto rotation =
+  current_rotation_ =
       static_cast<float>(data.current_rotation) +
       static_cast<float>(data.next_rotation - data.current_rotation) * ratio;
-  lander_triangle.setRotation(rotation);
-  lander_bottom.setRotation(rotation);
+  lander_triangle.setRotation(current_rotation_);
+  lander_bottom.setRotation(current_rotation_);
 }
 
 sf::Vector2f lander::calculate_position_(const coordinates &start,
@@ -69,4 +83,17 @@ void lander::create_shapes_(const coordinates &start, float rotation) {
   bottom_marker.setRotation(rotation);
 
   lander_bottom = bottom_marker;
+}
+
+void lander::attach(simulation &simu) {
+  simu.on_data_change([this, &simu]() {
+    this->update(
+        {
+            .current_position = simu.current_data().position,
+            .next_position = simu.next_data().position,
+            .current_rotation = simu.current_data().rotate,
+            .next_rotation = simu.next_data().rotate,
+        },
+        0.f);
+  });
 }

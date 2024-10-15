@@ -26,6 +26,10 @@ int main(int argc, const char *argv[]) try {
                           "SFML + ImGui Example");
   data.view_size = window.getSize();
 
+
+  lander lander{data};
+  lander.attach(data.simu);
+
   if (data.current_file) {
     auto loaded = load_file(data.current_file.value());
     data.initialize(loaded);
@@ -40,8 +44,6 @@ int main(int argc, const char *argv[]) try {
 
   // Create SFML window
   window.setFramerateLimit(60);
-
-  lander lander{data};
 
   // Initialize ImGui-SFML
   if (!ImGui::SFML::Init(window)) {

@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <functional>
 
 #include "play.hpp"
 #include "simulation_data.hpp"
@@ -19,6 +20,11 @@ inline decision do_nothing(const simulation_data &) {
 }
 
 struct simulation {
+  constexpr simulation() = default;
+  constexpr simulation(const simulation &) = delete;
+  constexpr simulation(simulation &&) = delete;
+  constexpr simulation &operator=(const simulation &) = delete;
+  constexpr simulation &operator=(simulation &&) = delete;
   enum class status { stopped, crashed, running, landed, paused };
   enum class status_change { none, land, crash };
 
@@ -64,6 +70,14 @@ struct simulation {
   const std::vector<decision> &decisions() const { return decision_history_; }
   const std::vector<simulation_data> &history() const { return history_; }
 
+  void on_data_change(std::function<void()> callback) {
+    assert(callback != nullptr);
+    on_data_change_ = std::move(callback);
+    if (history_.size() > 0) {
+      on_data_change_();
+    }
+  }
+
 private:
   enum status status_ { status::stopped };
   int current_frame_{0};
@@ -72,6 +86,8 @@ private:
   [[nodiscard]] next_tick compute_next_tick_(int from_frame,
                                              int wanted_rotation,
                                              int wanted_power) const;
+
+  std::function<void()> on_data_change_{nullptr};
 };
 
 template <DecisionProcess F>
@@ -83,6 +99,10 @@ void simulation::set_data(simulation_data new_data, F &&process) {
   history_.push_back(std::move(new_data));
 
   while (simulate(process(history_.back()))) {
+  }
+
+  if (on_data_change_ != nullptr) {
+    on_data_change_();
   }
 
   assert(history_.size() >= 1);

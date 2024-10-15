@@ -43,7 +43,7 @@ private:
 
   sf::ConvexShape lander_triangle_;
   sf::RectangleShape lander_bottom_;
-  sf::CircleShape thrust_;
+  sf::CircleShape thrust_marker_;
   int thrust_power_ = 0;
 
   sf::Vector2f calculate_position_(const coordinates &start,

@@ -22,10 +22,9 @@ lander::lander(game_data &data, view_transform transform)
 
 void lander::draw(sf::RenderTarget &target, sf::RenderStates states) const {
   for (int i = 0; i < thrust_power_; i++) {
-    sf::CircleShape thrust(thrust_);
-    float offset = (i - (thrust_power_ - 1) / 2.0f) * (ellipse_radius) + (ellipse_radius*ellipse_scale_y) / 2;
-    thrust.setPosition(lander_triangle_.getPosition().x + offset,
-                      lander_triangle_.getPosition().y);
+    sf::CircleShape thrust(thrust_marker_);
+    float offset = (i - (thrust_power_ - 1) / 2.0f) * (ellipse_radius * 2) + ellipse_radius;
+    thrust.setOrigin(offset, 0);
     target.draw(thrust, states);
   }
   target.draw(lander_triangle_, states);
@@ -39,12 +38,14 @@ void lander::update(const update_data &data, float ratio) {
   auto screen_position = transform_.to_screen(current_position_);
   lander_triangle_.setPosition(screen_position);
   lander_bottom_.setPosition(screen_position);
+  thrust_marker_.setPosition(screen_position);
 
   current_rotation_ =
       static_cast<float>(data.current_rotation) +
       static_cast<float>(data.next_rotation - data.current_rotation) * ratio;
   lander_triangle_.setRotation(current_rotation_);
   lander_bottom_.setRotation(current_rotation_);
+  thrust_marker_.setRotation(current_rotation_);
 }
 
 sf::Vector2f lander::calculate_position_(const coordinates &start,
@@ -86,12 +87,12 @@ void lander::create_shapes_(const coordinates &start, float rotation) {
 
   lander_bottom_ = bottom_marker;
 
-  thrust_ = sf::CircleShape(ellipse_radius);
-  thrust_.setScale(ellipse_scale_y, 1.f);
-  thrust_.setFillColor(sf::Color(255, 165, 0));
-  thrust_.setOrigin((lander_size - ellipse_radius) / 2, 0.f);
-  thrust_.setPosition(position);
-  thrust_.setRotation(rotation);
+  thrust_marker_ = sf::CircleShape(ellipse_radius);
+  thrust_marker_.setScale(ellipse_scale_y, 1.f);
+  thrust_marker_.setFillColor(sf::Color(255, 165, 0));
+  thrust_marker_.setOrigin((lander_size - ellipse_radius) / 2, 0.f);
+  thrust_marker_.setPosition(position);
+  thrust_marker_.setRotation(rotation);
 }
 
 void lander::attach(simulation &simu) {

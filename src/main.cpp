@@ -127,7 +127,6 @@ void play_simulation(game_data &game, lander &lander) {
 
     const auto &current_data = game.simu.current_data();
     const auto &next_data = game.simu.next_data();
-    std::cerr << "Current power: " << current_data.power << std::endl;
     lander.update(lander::update_data{.current_position = current_data.position,
                                       .next_position = next_data.position,
                                       .current_rotation = current_data.rotate,

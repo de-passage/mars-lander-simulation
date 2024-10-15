@@ -16,10 +16,19 @@ macro(set_source_list)
   list(TRANSFORM SOURCE_LIST PREPEND ${SOURCE_DIR}/)
 endmacro()
 
-set_source_list(game_data.cpp load_file.cpp lander.cpp simulation.cpp play.cpp)
+set_source_list(
+  game_data.cpp
+  load_file.cpp
+  lander.cpp
+  simulation.cpp
+  play.cpp
+  genetic.cpp
+  random.cpp
+)
 add_library(mars-lander-lib OBJECT ${SOURCE_LIST})
 target_link_libraries(mars-lander-lib PUBLIC sfml-system sfml-graphics)
 target_include_directories(mars-lander-lib PUBLIC ${SOURCE_DIR})
+
 
 set_source_list(main.cpp gui.cpp)
 add_executable(mars-visualizer ${SOURCE_LIST})

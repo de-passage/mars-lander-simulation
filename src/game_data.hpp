@@ -27,6 +27,7 @@ struct game_data {
   void set_initial_parameters_(const simulation_data &initial_data);
   void initialize(struct file_data &loaded);
   void reset_simulation();
+
   const coordinate_list &coordinates() const { return simu.coordinates; }
 
   const view_transform transform;

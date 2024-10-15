@@ -2,17 +2,18 @@
 #include "coordinates_utils.hpp"
 #include "game_data.hpp"
 #include "gui.hpp"
+#include "lander.hpp"
 #include "load_file.hpp"
+#include "trajectory.hpp"
 
 #include <SFML/Graphics.hpp>
 #include <imgui-SFML.h>
 #include <imgui.h>
 
-#include "lander.hpp"
-#include "trajectory.hpp"
 #include <filesystem>
 #include <iostream>
 #include <optional>
+#include <random>
 
 void play_simulation(game_data &game, lander &lander, const config &config) {
   using clock = std::chrono::steady_clock;

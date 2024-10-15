@@ -36,12 +36,15 @@ std::string_view to_string(enum simulation::status status) {
     return "Running";
   case simulation::status::stopped:
     return "Stopped";
+  case simulation::status::lost:
+    return "Lost";
   }
   return "Unknown";
 }
 
 void draw_history(const game_data &data) {
-  if (ImGui::Begin("Command History", nullptr, ImGuiWindowFlags_HorizontalScrollbar)) {
+  if (ImGui::Begin("Command History", nullptr,
+                   ImGuiWindowFlags_HorizontalScrollbar)) {
 
     ImGui::Text("Frame count: %d", data.simu.frame_count());
     ImGui::Separator();
@@ -101,25 +104,21 @@ void draw_gui(game_data &data, const lander &lander) {
 
       if (data.simu.current_status() == simulation::status::running) {
         if (ImGui::Button("Pause")) {
-          data.simu.pause();
         }
       } else if (data.simu.current_status() == simulation::status::paused) {
         if (ImGui::Button("Resume")) {
-          data.simu.run();
         }
       } else if (data.simu.current_status() == simulation::status::stopped) {
         if (ImGui::Button("Start")) {
-          data.simu.run();
         }
       } else if (data.simu.current_status() == simulation::status::landed ||
-                 data.simu.current_status() == simulation::status::crashed) {
+                 data.simu.current_status() == simulation::status::crashed ||
+                 data.simu.current_status() == simulation::status::lost) {
         if (ImGui::Button("Restart")) {
-          data.simu.set_data(data.initial);
         }
       }
       ImGui::SameLine();
       if (ImGui::Button("Reset")) {
-        data.simu.set_data(data.initial);
       }
 
       ImGui::Separator();

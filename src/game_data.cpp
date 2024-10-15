@@ -10,7 +10,7 @@ void game_data::initialize(file_data &loaded) {
 }
 
 void game_data::reset_simulation() {
-  simu.set_data(initial);
+  simu.set_data(initial, decide);
 }
 
 void game_data::update_coordinates_(coordinate_list new_coordinates) {

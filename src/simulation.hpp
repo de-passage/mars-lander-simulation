@@ -25,8 +25,8 @@ struct simulation {
   constexpr simulation(simulation &&) = delete;
   constexpr simulation &operator=(const simulation &) = delete;
   constexpr simulation &operator=(simulation &&) = delete;
-  enum class status { stopped, crashed, running, landed, paused };
-  enum class status_change { none, land, crash };
+  enum class status { stopped, crashed, running, landed, paused, lost };
+  enum class status_change { none, land, crash, lost };
 
   using duration = std::chrono::nanoseconds;
 

@@ -4,7 +4,6 @@
 #include "math.hpp"
 #include <cassert>
 #include <cmath>
-#include <iostream>
 
 simulation::status simulation::current_status() const { return status_; }
 
@@ -37,8 +36,9 @@ bool simulation::simulate(decision this_turn) {
   if (auto wanted_power_change = wanted_power - current.power;
       std::abs(wanted_power_change) > 1) {
     wanted_power =
-        current.power + (std::abs(wanted_power_change) / wanted_power);
+        current.power + (std::abs(wanted_power_change) / wanted_power_change);
   }
+  wanted_power = std::min(current.fuel, wanted_power);
 
   if (auto wanted_rotation_change = wanted_rotation - current.rotate;
       std::abs(wanted_rotation_change) > MAX_TURN_RATE) {
@@ -55,6 +55,8 @@ bool simulation::simulate(decision this_turn) {
     status_ = status::landed;
   } else if (next_tick.change == status_change::crash) {
     status_ = status::crashed;
+  } else if (next_tick.change == status_change::lost) {
+    status_ = status::lost;
   }
   history_.push_back(std::move(next_tick.data));
   current_frame_++;
@@ -106,13 +108,20 @@ simulation::next_tick simulation::compute_next_tick_(int from_frame,
   next_data.data.fuel = current.fuel - wanted_power;
   next_data.data.rotate = wanted_rotation;
   next_data.data.velocity.x =
-      current.velocity.x + wanted_power * std::cos(current.rotate * DEG_TO_RAD);
+      current.velocity.x +
+      wanted_power * (1 - std::cos(current.rotate * DEG_TO_RAD));
   next_data.data.velocity.y =
       current.velocity.y +
-      wanted_power * std::sin(current.rotate * DEG_TO_RAD) - MARS_GRAVITY;
+      wanted_power * (1 - std::sin(current.rotate * DEG_TO_RAD)) - MARS_GRAVITY;
   next_data.data.position =
       current.position + ::coordinates{current.velocity.x, current.velocity.y};
 
-  next_data.change = touchdown(current.position, next_data.data.position);
+  if (next_data.data.position.y < 0 ||
+      next_data.data.position.y > GAME_HEIGHT ||
+      next_data.data.position.x < 0 || next_data.data.position.x > GAME_WIDTH) {
+    next_data.change = status_change::lost;
+  } else {
+    next_data.change = touchdown(current.position, next_data.data.position);
+  }
   return next_data;
 }

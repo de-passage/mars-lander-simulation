@@ -1,7 +1,7 @@
+#include "coordinates_utils.hpp"
 #include "game_data.hpp"
 #include "gui.hpp"
 #include "load_file.hpp"
-#include "coordinates_utils.hpp"
 
 #include <SFML/Graphics.hpp>
 #include <imgui-SFML.h>
@@ -111,19 +111,21 @@ void play_simulation(game_data &game, lander &lander) {
 
   static auto last_time = clock::now();
   static clock::duration frame = 0s;
+  auto playback_speed = nanoseconds(1s) / game.playback_speed;
 
   auto now = clock::now();
   if (game.is_running()) {
     auto delta = now - last_time;
     frame += delta;
-    if (frame >= 1s) {
-      frame -= 1s;
+    if (frame >= playback_speed) {
+      frame -= playback_speed;
       if (!game.next_frame()) {
         game.stop();
       }
     }
 
-    auto elapsed_ratio = duration_cast<duration<double>>(frame) / duration_cast<duration<double>>(1s);
+    auto elapsed_ratio = duration_cast<duration<double>>(frame) /
+                         duration_cast<duration<double>>(playback_speed);
 
     const auto &current_data = game.simu.current_data();
     const auto &next_data = game.simu.next_data();
@@ -131,8 +133,7 @@ void play_simulation(game_data &game, lander &lander) {
                                       .next_position = next_data.position,
                                       .current_rotation = current_data.rotate,
                                       .next_rotation = next_data.rotate,
-                                      .power = current_data.power
-                                      },
+                                      .power = current_data.power},
                   elapsed_ratio);
   } else {
     frame = 0s;

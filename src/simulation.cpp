@@ -84,12 +84,12 @@ simulation::tick_data simulation::compute_next_tick_(int from_frame,
   next_data.data.rotate = wanted_rotation;
   next_data.data.velocity.x =
       current.velocity.x +
-      wanted_power * (1 - std::cos(current.rotate * DEG_TO_RAD));
+      wanted_power * (std::sin(next_data.data.rotate * DEG_TO_RAD));
   next_data.data.velocity.y =
       current.velocity.y +
-      wanted_power * (1 - std::sin(current.rotate * DEG_TO_RAD)) - MARS_GRAVITY;
+      wanted_power * (std::cos(next_data.data.rotate * DEG_TO_RAD)) - MARS_GRAVITY;
   next_data.data.position =
-      current.position + ::coordinates{current.velocity.x, current.velocity.y};
+      current.position + current.velocity;
 
   if (next_data.data.position.y < 0 ||
       next_data.data.position.y > GAME_HEIGHT ||

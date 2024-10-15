@@ -6,7 +6,6 @@
 #include <imgui.h>
 #include <string_view>
 
-static int selected_frame = 0;
 void draw_file_selection(game_data &data) {
   if (ImGui::Begin("File Selection")) {
     ImGui::Text("Files in %s", data.resource_path.c_str());
@@ -18,7 +17,6 @@ void draw_file_selection(game_data &data) {
           data.current_file = file;
           auto loaded = load_file(file);
           data.initialize(loaded);
-          selected_frame = 0;
         }
       }
     }
@@ -125,16 +123,18 @@ void draw_gui(game_data &game, const lander &lander) {
           game.play();
         }
       }
+      ImGui::SameLine();
+
+      ImGui::SliderInt("Playback speed", &game.playback_speed, 1, 10);
 
       ImGui::Separator();
 
       bool changed = false;
-      selected_frame = game.simu.current_frame();
+      int selected_frame = game.simu.current_frame();
       int last_selected = selected_frame;
       bool disable_backward = selected_frame == 0;
       bool disable_forward = selected_frame == game.simu.frame_count() - 1;
 
-      ImGui::Text("History size: %d", game.simu.frame_count() - 1);
       if (disable_backward) {
         ImGui::BeginDisabled();
       }

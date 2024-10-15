@@ -34,6 +34,7 @@ struct game_data {
   fs::path resource_path{"data"};
   std::optional<fs::path> current_file;
   bool show_trajectory = true;
+  int playback_speed = 5;
   const view_transform transform;
 
   constexpr bool is_running() const { return status_ == status::running; }

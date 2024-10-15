@@ -1,6 +1,8 @@
 #include "load_file.hpp"
 #include <fstream>
 
+namespace fs = std::filesystem;
+
 file_data load_file(const fs::path &path) {
   std::ifstream file(path);
   if (!file.is_open()) {

@@ -11,8 +11,6 @@
 #include <optional>
 #include <vector>
 
-namespace fs = std::filesystem;
-
 struct game_data {
   game_data(view_transform transform) : transform{transform} {}
   constexpr game_data(const game_data &) = delete;
@@ -31,10 +29,6 @@ struct game_data {
   void reset_simulation();
   const coordinate_list &coordinates() const { return simu.coordinates; }
 
-  fs::path resource_path{"data"};
-  std::optional<fs::path> current_file;
-  bool show_trajectory = true;
-  int playback_speed = 5;
   const view_transform transform;
 
   constexpr bool is_running() const { return status_ == status::running; }

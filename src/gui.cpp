@@ -1,4 +1,5 @@
 #include "gui.hpp"
+#include "config.hpp"
 #include "constants.hpp"
 #include "game_data.hpp"
 #include "lander.hpp"
@@ -8,7 +9,7 @@
 #include <imgui.h>
 #include <string_view>
 
-void draw_file_selection(game_data &data) {
+void draw_file_selection(game_data& game, config &data) {
   if (ImGui::Begin("File Selection")) {
     ImGui::Text("Files in %s", data.resource_path.c_str());
     ImGui::Separator();
@@ -18,7 +19,7 @@ void draw_file_selection(game_data &data) {
         if (ImGui::Selectable(file.filename().string().c_str())) {
           data.current_file = file;
           auto loaded = load_file(file);
-          data.initialize(loaded);
+          game.initialize(loaded);
         }
       }
     }
@@ -132,7 +133,7 @@ void draw_history(const simulation &simu) {
   ImGui::End();
 }
 
-void draw_playback_control(game_data &game, simulation &simu) {
+void draw_playback_control(game_data &game, simulation &simu, config& config) {
   if (game.is_running()) {
     if (ImGui::Button("Stop")) {
       game.stop();
@@ -144,7 +145,7 @@ void draw_playback_control(game_data &game, simulation &simu) {
   }
   ImGui::SameLine();
 
-  ImGui::SliderInt("Playback speed", &game.playback_speed, 1,
+  ImGui::SliderInt("Playback speed", &config.playback_speed, 1,
                    MAX_PLAYBACK_SPEED);
 
   ImGui::Separator();
@@ -214,18 +215,18 @@ void draw_lander_data(const lander &lander) {
   ImGui::Text("Lander Screen Rotation: %.2f", lander.triangle_rotation());
 }
 
-void draw_frame(game_data &game) {
+void draw_frame(game_data &game, config &config) {
   // Example ImGui window
   if (ImGui::Begin("Data")) {
     ImGui::Text("Status: %s", to_string(game.simu.simulation_status()).data());
-    ImGui::Checkbox("Show trajectory", &game.show_trajectory);
+    ImGui::Checkbox("Show trajectory", &config.show_trajectory);
 
-    if (game.current_file) {
-      ImGui::Text("File: %s", game.current_file->filename().string().c_str());
+    if (config.current_file) {
+      ImGui::Text("File: %s", config.current_file->filename().string().c_str());
       ImGui::Text("Frame count: %d", game.simu.frame_count());
       ImGui::Spacing();
 
-      draw_playback_control(game, game.simu);
+      draw_playback_control(game, game.simu, config);
 
       ImGui::Separator();
 
@@ -246,8 +247,8 @@ void draw_frame(game_data &game) {
   ImGui::End();
 }
 
-void draw_gui(game_data &game) {
-  draw_frame(game);
-  draw_file_selection(game);
+void draw_gui(game_data &game, config& config) {
+  draw_frame(game, config);
+  draw_file_selection(game, config);
   draw_history(game.simu);
 }

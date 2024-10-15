@@ -4,6 +4,7 @@
 #include "math.hpp"
 #include <cassert>
 #include <cmath>
+#include <iostream>
 
 simulation::status simulation::current_status() const { return status_; }
 
@@ -31,14 +32,20 @@ bool simulation::simulate(decision this_turn) {
       std::min(MAX_ROTATION, std::max(-MAX_ROTATION, this_turn.rotate));
   auto wanted_power = std::min(std::min(current_data().fuel, MAX_POWER),
                                std::max(0, this_turn.power));
-  if (auto wanted_power_change = std::abs(wanted_power);
-      wanted_power_change > 1) {
-    wanted_power = wanted_power_change / wanted_power;
+
+  auto &current = current_data();
+  if (auto wanted_power_change = wanted_power - current.power;
+      std::abs(wanted_power_change) > 1) {
+    wanted_power =
+        current.power + (std::abs(wanted_power_change) / wanted_power);
   }
-  if (auto wanted_rotation_change = std::abs(wanted_rotation);
-      wanted_rotation_change > MAX_TURN_RATE) {
+
+  if (auto wanted_rotation_change = wanted_rotation - current.rotate;
+      std::abs(wanted_rotation_change) > MAX_TURN_RATE) {
     wanted_rotation =
-        (wanted_rotation_change / wanted_rotation) * MAX_TURN_RATE;
+        current.rotate +
+        ((std::abs(wanted_rotation_change) / wanted_rotation_change) *
+         MAX_TURN_RATE);
   }
 
   auto next_tick =
@@ -97,10 +104,9 @@ simulation::next_tick simulation::compute_next_tick_(int from_frame,
   next_tick next_data;
   next_data.data.power = wanted_power;
   next_data.data.fuel = current.fuel - wanted_power;
-  next_data.data.rotate =  wanted_rotation;
+  next_data.data.rotate = wanted_rotation;
   next_data.data.velocity.x =
-      current.velocity.x +
-      wanted_power * std::cos(current.rotate * DEG_TO_RAD);
+      current.velocity.x + wanted_power * std::cos(current.rotate * DEG_TO_RAD);
   next_data.data.velocity.y =
       current.velocity.y +
       wanted_power * std::sin(current.rotate * DEG_TO_RAD) - MARS_GRAVITY;

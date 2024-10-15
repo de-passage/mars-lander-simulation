@@ -6,13 +6,12 @@
 #include <iostream>
 
 void game_data::initialize(file_data &loaded) {
-  set_initial_parameters_(loaded.data);
   update_coordinates_(std::move(loaded.line));
+  set_initial_parameters_(loaded.data); // Must be called after update_coordinates_
 }
 
 void game_data::reset_simulation() {
   simu.set_data(initial);
-  simu.tick_count = 0;
 }
 
 void game_data::update_coordinates_(coordinate_list new_coordinates) {

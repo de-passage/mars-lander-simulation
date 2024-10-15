@@ -4,17 +4,13 @@
 #include "math.hpp"
 #include <cassert>
 #include <cmath>
-#include <iostream>
 
-const simulation_data &simulation::current_data() const {
-  return history[current_frame_];
-}
 simulation::status simulation::current_status() const { return status_; }
 
 void simulation::run() {
   if (status_ == simulation::status::paused) {
     status_ = simulation::status::running;
-    current_frame_ = history.size() - 1;
+    current_frame_ = history_.size() - 1;
   } else if (status_ == status::stopped) {
     status_ = simulation::status::running;
     current_frame_ = 0;
@@ -26,35 +22,15 @@ void simulation::pause() {
   }
 }
 
-void simulation::tick(duration delta) {
-  using namespace std::chrono_literals;
-  if (status_ == simulation::status::running ||
-      status_ == simulation::status::paused) {
-    elapsed_time += delta;
-  }
-
-  if (elapsed_time >= 1s / simulation_speed) {
-    tick_count++;
-    elapsed_time -= 1s;
-    compute_next_tick();
-  } else {
-    double ratio = elapsed_time.count() / 1000000000.;
-    const auto &current = current_data();
-
-    auto distance = next_data.position - current.position;
-    adjusted_position = sf::Vector2f{
-        static_cast<float>(current.position.x + (distance.x * ratio / simulation_speed)),
-        static_cast<float>(current.position.y + (distance.y * ratio / simulation_speed))};
-
-    adjusted_rotation =
-        current.rotate + (next_data.rotate - current.rotate) * ratio / simulation_speed;
-  }
-}
-
-void simulation::simulate(decision this_turn) {
+/// Returns true if the simulation keeps running after this turn
+/// False indicates touchdown or crash
+bool simulation::simulate(decision this_turn) {
+  assert(coordinates.size() > 1);
+  decision_history_.push_back(this_turn);
   auto wanted_rotation =
       std::min(MAX_ROTATION, std::max(-MAX_ROTATION, this_turn.rotate));
-  auto wanted_power = std::min(MAX_POWER, std::max(0, this_turn.power));
+  auto wanted_power = std::min(std::min(current_data().fuel, MAX_POWER),
+                               std::max(0, this_turn.power));
   if (auto wanted_power_change = std::abs(wanted_power);
       wanted_power_change > 1) {
     wanted_power = wanted_power_change / wanted_power;
@@ -65,16 +41,23 @@ void simulation::simulate(decision this_turn) {
         (wanted_rotation_change / wanted_rotation) * MAX_TURN_RATE;
   }
 
-  next_data.rotate = this_turn.rotate;
-  next_data.power = this_turn.power;
-  compute_next_tick();
-  elapsed_time = duration{0};
-  tick_count = 0;
-  status_ = simulation::status::running;
+  auto next_tick =
+      compute_next_tick_(current_frame_, wanted_rotation, wanted_power);
+  bool should_continue = next_tick.change == status_change::none;
+  if (next_tick.change == status_change::land) {
+    status_ = status::landed;
+  } else if (next_tick.change == status_change::crash) {
+    status_ = status::crashed;
+  }
+  history_.push_back(std::move(next_tick.data));
+  current_frame_++;
+  return should_continue;
 }
 
-simulation::status_change simulation::touchdown(const ::coordinates &start,
-                                                const ::coordinates &next) {
+simulation::status_change
+simulation::touchdown(const ::coordinates &start,
+                      const ::coordinates &next) const {
+  assert(coordinates.size() > 1);
   const auto &current = current_data();
   for (size_t i = 0; i < coordinates.size() - 1; ++i) {
     auto current_segment = segment{coordinates[i], coordinates[i + 1]};
@@ -91,43 +74,32 @@ simulation::status_change simulation::touchdown(const ::coordinates &start,
   return simulation::status_change::none;
 }
 
-void simulation::set_data(simulation_data new_data) {
-  history.clear(); // must stay before compute_next_tick
-  next_data = std::move(new_data);
-  compute_next_tick();
-  elapsed_time = duration{0};
-  tick_count = 0;
-  status_ = simulation::status::stopped;
-  assert(history.size() == 1);
-}
-
 void simulation::set_history_point(int index) {
-  assert(index >= 0 && index < history.size());
-
+  assert(index >= 0);
+  assert(index < history_.size());
   current_frame_ = index;
   pause();
-  elapsed_time = duration{0};
-
-  adjusted_position = {static_cast<float>(current_data().position.x),
-                       static_cast<float>(current_data().position.y)};
-  adjusted_rotation = current_data().rotate;
 }
 
-void simulation::compute_next_tick() {
-  history.push_back(std::move(next_data));
-  current_frame_ = history.size() - 1;
-  const auto &current = current_data();
-  next_data.fuel = current.fuel - current.power;
-  next_data.velocity.x = current.velocity.x +
-                         current.power * std::cos(current.rotate * DEG_TO_RAD);
-  next_data.velocity.y = current.velocity.y +
-                         current.power * std::sin(current.rotate * DEG_TO_RAD) -
-                         MARS_GRAVITY;
-  next_data.position =
-      current.position +
-      ::coordinates{current.velocity.x, current.velocity.y};
+simulation::next_tick simulation::compute_next_tick_(int from_frame,
+                                                     int wanted_rotation,
+                                                     int wanted_power) const {
+  assert(from_frame <= history_.size() - 1);
+  assert(from_frame >= 0);
+  const auto &current = history_[from_frame];
+  next_tick next_data;
+  next_data.data.power = wanted_power;
+  next_data.data.fuel = current.fuel - wanted_power;
+  next_data.data.rotate =  wanted_rotation;
+  next_data.data.velocity.x =
+      current.velocity.x +
+      wanted_power * std::cos(current.rotate * DEG_TO_RAD);
+  next_data.data.velocity.y =
+      current.velocity.y +
+      wanted_power * std::sin(current.rotate * DEG_TO_RAD) - MARS_GRAVITY;
+  next_data.data.position =
+      current.position + ::coordinates{current.velocity.x, current.velocity.y};
 
-  adjusted_position = {static_cast<float>(current.position.x),
-                       static_cast<float>(current.position.y)};
-  adjusted_rotation = current.rotate;
+  next_data.change = touchdown(current.position, next_data.data.position);
+  return next_data;
 }

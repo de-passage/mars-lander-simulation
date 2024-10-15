@@ -2,6 +2,7 @@
 #include "game_data.hpp"
 #include "lander.hpp"
 #include "load_file.hpp"
+#include <array>
 #include <imgui.h>
 #include <string_view>
 
@@ -37,6 +38,52 @@ std::string_view to_string(enum simulation::status status) {
   return "Unknown";
 }
 
+void draw_history(const game_data &data) {
+  if (ImGui::Begin("Command History", nullptr, ImGuiWindowFlags_HorizontalScrollbar)) {
+
+    ImGui::Text("Frame count: %d", data.simu.frame_count());
+    ImGui::Separator();
+    ImGui::Columns(2);
+    ImGui::Text("Frames");
+
+    if (ImGui::BeginTable("Frames", 5)) {
+
+      constexpr std::array headers = {"Position", "Velocity", "Fuel", "Rotate",
+                                      "Power"};
+      for (const auto &header : headers) {
+        ImGui::TableSetupColumn(header, ImGuiTableColumnFlags_WidthFixed);
+      }
+      for (const auto &header : headers) {
+        ImGui::TableNextColumn();
+        ImGui::TableHeader(header);
+      }
+
+      for (int i = 0; i < data.simu.frame_count(); ++i) {
+        const auto &frame = data.simu.history()[i];
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("(%.2f, %.2f)", frame.position.x, frame.position.y);
+        ImGui::TableNextColumn();
+        ImGui::Text("(%.1f, %.1f)", frame.velocity.x, frame.velocity.y);
+        ImGui::TableNextColumn();
+        ImGui::Text("%d", frame.fuel);
+        ImGui::TableNextColumn();
+        ImGui::Text("%d", frame.rotate);
+        ImGui::TableNextColumn();
+        ImGui::Text("%d", frame.power);
+      }
+    }
+    ImGui::EndTable();
+
+    ImGui::NextColumn();
+    ImGui::Text("Decisions");
+    for (const auto &decision : data.simu.decisions()) {
+      ImGui::Text("Rotate: %d, Power: %d", decision.rotate, decision.power);
+    }
+  }
+  ImGui::End();
+}
+
 void draw_gui(game_data &data, const lander &lander) {
   // Example ImGui window
   if (ImGui::Begin("Coordinates")) {
@@ -44,7 +91,7 @@ void draw_gui(game_data &data, const lander &lander) {
 
     if (data.current_file) {
       ImGui::Text("File: %s", data.current_file->filename().string().c_str());
-      ImGui::Text("Elapsed Time: %d", data.simu.tick_count);
+      ImGui::Text("Frame count: %d", data.simu.frame_count());
       ImGui::Spacing();
 
       if (data.simu.current_status() == simulation::status::running) {
@@ -74,13 +121,15 @@ void draw_gui(game_data &data, const lander &lander) {
 
       static int selected_frame = 0;
       bool changed = false;
+      if (data.simu.is_running()) {
+        selected_frame = data.simu.current_frame();
+      }
       int last_selected = selected_frame;
       bool disable_backward = selected_frame == 0;
-      bool disable_forward = selected_frame == data.simu.history.size() - 1;
+      bool disable_forward = selected_frame == data.simu.frame_count() - 1;
 
-      ImGui::Text("History size: %zu", data.simu.history.size());
-      if (disable_backward)
-      {
+      ImGui::Text("History size: %d", data.simu.frame_count() - 1);
+      if (disable_backward) {
         ImGui::BeginDisabled();
       }
       if (ImGui::Button("<")) {
@@ -90,35 +139,29 @@ void draw_gui(game_data &data, const lander &lander) {
           selected_frame = 0;
         }
       }
-      if (disable_backward)
-      {
+      if (disable_backward) {
         ImGui::EndDisabled();
       }
       ImGui::SameLine();
-      if (ImGui::SliderInt("##History", &selected_frame, 0, data.simu.history.size() - 1)) {
+      if (ImGui::SliderInt("##History", &selected_frame, 0,
+                           data.simu.frame_count() - 1)) {
         // ImGui::Text("Selected frame: %d", selected_frame);
       }
-      if (!ImGui::IsItemActive()) {
-        if (data.simu.is_running()) {
-          selected_frame = data.simu.history.size() - 1;
-        }
-      } else {
+      if (ImGui::IsItemActive()) {
         changed = true;
       }
       ImGui::SameLine();
-      if (disable_forward)
-      {
+      if (disable_forward) {
         ImGui::BeginDisabled();
       }
       if (ImGui::Button(">")) {
         selected_frame++;
         changed = true;
-        if (selected_frame >= data.simu.history.size()) {
-          selected_frame = data.simu.history.size() - 1;
+        if (selected_frame >= data.simu.frame_count()) {
+          selected_frame = data.simu.frame_count() - 1;
         }
       }
-      if (disable_forward)
-      {
+      if (disable_forward) {
         ImGui::EndDisabled();
       }
       if (changed) {
@@ -148,11 +191,11 @@ void draw_gui(game_data &data, const lander &lander) {
       ImGui::Text("Initial Power: %d", data.initial.power);
 
       ImGui::Columns(1);
-      ImGui::Text("Lander Logical Position: %.2f, %.2f", lander.current_position().x,
-                  lander.current_position().y);
+      ImGui::Text("Lander Logical Position: %.2f, %.2f",
+                  lander.current_position().x, lander.current_position().y);
       ImGui::Text("Lander Logical Rotation: %.2f", lander.current_rotation());
-      ImGui::Text("Lander Screen Coordinates: %.2f, %.2f", lander.triangle_position().x,
-                  lander.triangle_position().y);
+      ImGui::Text("Lander Screen Coordinates: %.2f, %.2f",
+                  lander.triangle_position().x, lander.triangle_position().y);
       ImGui::Text("Lander Screen Rotation: %.2f", lander.triangle_rotation());
       ImGui::Separator();
 
@@ -160,7 +203,7 @@ void draw_gui(game_data &data, const lander &lander) {
                             ImGuiTableFlags_SizingStretchProp)) {
         ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthFixed);
         ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthFixed);
-        for (auto& coord : data.coordinates()) {
+        for (auto &coord : data.coordinates()) {
           ImGui::TableNextRow();
           ImGui::TableNextColumn();
           ImGui::Text("%.0f", coord.x);
@@ -172,8 +215,8 @@ void draw_gui(game_data &data, const lander &lander) {
     } else {
       ImGui::Text("No file selected.");
     }
-
-    ImGui::End();
   }
+  ImGui::End();
   draw_file_selection(data);
+  draw_history(data);
 }

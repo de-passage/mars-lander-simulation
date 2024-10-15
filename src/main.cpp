@@ -13,8 +13,8 @@
 
 int main(int argc, const char *argv[]) try {
 
-  constexpr int INIT_WIDTH = 700*1.5;
-  constexpr int INIT_HEIGHT = 300*1.5;
+  constexpr int INIT_WIDTH = 700 * 1.5;
+  constexpr int INIT_HEIGHT = 300 * 1.5;
 
   game_data data;
 
@@ -71,17 +71,27 @@ int main(int argc, const char *argv[]) try {
     ImGui::SFML::Update(window, deltaClock.restart());
     draw_gui(data, lander);
 
-    if (data.simu.is_running()) {
-      auto elapsed = clock::now() - last_time;
-      data.simu.tick(elapsed);
-    }
-    last_time = clock::now();
-    lander.update();
-
     // Clear SFML window
     window.clear();
 
     if (data.current_file) {
+      auto now = clock::now();
+      if (data.simu.is_running()) {
+        using namespace std::chrono_literals;
+        auto delta = now - last_time;
+        auto elapsed_ratio = static_cast<double>((1s).count()) /
+                             static_cast<double>(delta.count());
+
+        const auto &current_data = data.simu.current_data();
+        const auto &next_data = data.simu.next_data();
+        lander.update(
+            lander::update_data{.current_position = current_data.position,
+                                .next_position = next_data.position,
+                                .current_rotation = current_data.rotate,
+                                .next_rotation = next_data.rotate},
+            elapsed_ratio);
+      }
+      last_time = now;
       window.draw(lander);
       window.draw(data.line);
     }

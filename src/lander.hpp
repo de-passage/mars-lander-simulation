@@ -13,7 +13,14 @@ public:
   virtual void draw(sf::RenderTarget &target,
                     sf::RenderStates states) const override;
 
-  void update();
+  struct update_data {
+    const sf::Vector2f &current_position;
+    const sf::Vector2f &next_position;
+    int current_rotation;
+    int next_rotation;
+  };
+
+  void update(const update_data& data, float ratio);
 
   inline sf::Vector2f triangle_position() const {
     return lander_triangle.getPosition();
@@ -23,21 +30,20 @@ public:
   }
 
   inline sf::Vector2f current_position() const {
-    return data.adjusted_position;
+    return current_position_;
   }
-  inline float current_rotation() const {
-    return data.adjusted_rotation;
-  }
+  inline float current_rotation() const { return current_rotation_; }
 
 private:
-  simulation &data;
+  coordinates current_position_;
+  float current_rotation_;
   unsigned int height;
   unsigned int width;
 
   sf::ConvexShape lander_triangle;
   sf::RectangleShape lander_bottom;
 
-  sf::Vector2f calculate_position();
-  void create_shapes();
+  sf::Vector2f calculate_position_(const coordinates &start,
+                                        const coordinates &end, float ratio);
+  void create_shapes_(const coordinates& start, float rotation);
 };
-

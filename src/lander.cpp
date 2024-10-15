@@ -3,8 +3,9 @@
 #include <iostream>
 
 lander::lander(game_data &data)
-    : data{data.simu}, height{data.view_size.y}, width{data.view_size.x} {
-  create_shapes();
+    : height{data.view_size.y}, width{data.view_size.x} {
+  const auto &current = data.simu.current_data();
+  create_shapes_(current.position, current.rotate);
 }
 
 void lander::draw(sf::RenderTarget &target, sf::RenderStates states) const {
@@ -12,27 +13,36 @@ void lander::draw(sf::RenderTarget &target, sf::RenderStates states) const {
   target.draw(lander_bottom, states);
 }
 
-void lander::update() {
-  auto position = calculate_position();
+void lander::update(const update_data &data, float ratio) {
+  auto position =
+      calculate_position_(data.current_position, data.next_position, ratio);
   lander_triangle.setPosition(position);
-  lander_bottom.setPosition(position.x, position.y);
-  lander_triangle.setRotation(data.adjusted_rotation);
-  lander_bottom.setRotation(data.adjusted_rotation);
+  lander_bottom.setPosition(position);
+
+  auto rotation =
+      static_cast<float>(data.current_rotation) +
+      static_cast<float>(data.next_rotation - data.current_rotation) * ratio;
+  lander_triangle.setRotation(rotation);
+  lander_bottom.setRotation(rotation);
 }
 
-sf::Vector2f lander::calculate_position() {
+sf::Vector2f lander::calculate_position_(const coordinates &start,
+                                         const coordinates &end, float ratio) {
   const float window_width = static_cast<float>(width);
   const float window_height = static_cast<float>(height);
 
+  const float logical_x = start.x + (end.x - start.x) * ratio;
+  const float logical_y = start.y + (end.y - start.y) * ratio;
+
   sf::Vector2f position;
-  position.x = (data.adjusted_position.x / static_cast<float>(GAME_WIDTH)) * window_width;
+  position.x = (logical_x / static_cast<float>(GAME_WIDTH)) * window_width;
   position.y =
-      (1.0f - (data.adjusted_position.y / static_cast<float>(GAME_HEIGHT))) * window_height;
+      (1.0f - (logical_y / static_cast<float>(GAME_HEIGHT))) * window_height;
   return position;
 }
 
-void lander::create_shapes() {
-  auto position = calculate_position();
+void lander::create_shapes_(const coordinates &start, float rotation) {
+  auto position = calculate_position_(start, start, 0.f);
   sf::ConvexShape triangle(3); // A triangle has 3 points
   // Define the points for the triangle (relative to the position)
   triangle.setPoint(0, sf::Vector2f(-lander_size / 2.f, 0.f)); // Left point
@@ -45,6 +55,8 @@ void lander::create_shapes() {
   triangle.setOutlineThickness(2.f);
   triangle.setOutlineColor(
       sf::Color::Yellow); // Highlight outline (e.g., bottom side)
+  triangle.setPosition(position);
+  triangle.setRotation(rotation);
 
   lander_triangle = std::move(triangle);
 
@@ -53,6 +65,8 @@ void lander::create_shapes() {
       lander_size, 3.f)); // A line with width `size` and height `2`
   bottom_marker.setFillColor(sf::Color::Red); // Red line indicating the bottom
   bottom_marker.setOrigin(lander_size / 2.f, 0.f);
+  bottom_marker.setPosition(position);
+  bottom_marker.setRotation(rotation);
+
   lander_bottom = bottom_marker;
 }
-

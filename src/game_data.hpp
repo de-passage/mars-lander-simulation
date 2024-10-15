@@ -2,6 +2,7 @@
 
 #include "simulation.hpp"
 #include "simulation_data.hpp"
+#include "view_transform.hpp"
 
 #include <SFML/Graphics/VertexArray.hpp>
 #include <SFML/System/Vector2.hpp>
@@ -13,15 +14,12 @@
 namespace fs = std::filesystem;
 
 struct game_data {
-  game_data() = default;
+  game_data(view_transform transform) : transform{transform} {}
   constexpr game_data(const game_data &) = delete;
   constexpr game_data(game_data &&) = delete;
   constexpr game_data &operator=(const game_data &) = delete;
   constexpr game_data &operator=(game_data &&) = delete;
-  fs::path resource_path{"data"};
-  std::optional<fs::path> current_file;
 
-  sf::Vector2u view_size;
   sf::VertexArray line;
 
   simulation_data initial;
@@ -33,5 +31,21 @@ struct game_data {
   void reset_simulation();
   const coordinate_list &coordinates() const { return simu.coordinates; }
 
+  fs::path resource_path{"data"};
+  std::optional<fs::path> current_file;
   bool show_trajectory = true;
+  const view_transform transform;
+
+  constexpr bool is_running() const { return status_ == status::running; }
+  bool play();
+  void stop() { status_ = status::stopped; }
+  bool next_frame();
+
+  enum class status {
+    running,
+    stopped,
+  };
+
+private:
+  status status_ = status::stopped;
 };

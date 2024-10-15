@@ -6,6 +6,7 @@
 #include <imgui.h>
 #include <string_view>
 
+static int selected_frame = 0;
 void draw_file_selection(game_data &data) {
   if (ImGui::Begin("File Selection")) {
     ImGui::Text("Files in %s", data.resource_path.c_str());
@@ -17,6 +18,7 @@ void draw_file_selection(game_data &data) {
           data.current_file = file;
           auto loaded = load_file(file);
           data.initialize(loaded);
+          selected_frame = 0;
         }
       }
     }
@@ -24,18 +26,24 @@ void draw_file_selection(game_data &data) {
   ImGui::End();
 }
 
+std::string_view to_string(enum game_data::status status) {
+  switch (status) {
+  case game_data::status::running:
+    return "Running";
+  case game_data::status::stopped:
+    return "Stopped";
+  }
+  return "Unknown";
+}
+
 std::string_view to_string(enum simulation::status status) {
   switch (status) {
-  case simulation::status::crashed:
-    return "Crashed";
-  case simulation::status::landed:
+  case simulation::status::none:
+    return "None";
+  case simulation::status::land:
     return "Landed";
-  case simulation::status::paused:
-    return "Paused";
-  case simulation::status::running:
-    return "Running";
-  case simulation::status::stopped:
-    return "Stopped";
+  case simulation::status::crash:
+    return "Crashed";
   case simulation::status::lost:
     return "Lost";
   }
@@ -47,14 +55,16 @@ void draw_history(const game_data &data) {
                    ImGuiWindowFlags_HorizontalScrollbar)) {
 
     ImGui::Text("Frame count: %d", data.simu.frame_count());
+    ImGui::Text("Simulation result: %s",
+                to_string(data.simu.simulation_status()).data());
     ImGui::Separator();
     ImGui::Columns(2);
     ImGui::Text("Frames");
 
-    if (ImGui::BeginTable("Frames", 5)) {
+    constexpr std::array headers = {"Position", "Velocity", "Fuel", "Rotate",
+                                    "Power", "Status"};
+    if (ImGui::BeginTable("Frames", headers.size())) {
 
-      constexpr std::array headers = {"Position", "Velocity", "Fuel", "Rotate",
-                                      "Power"};
       for (const auto &header : headers) {
         ImGui::TableSetupColumn(header, ImGuiTableColumnFlags_WidthFixed);
       }
@@ -67,15 +77,19 @@ void draw_history(const game_data &data) {
         const auto &frame = data.simu.history()[i];
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::Text("(%.2f, %.2f)", frame.position.x, frame.position.y);
+        ImGui::Text("(%.2f, %.2f)", frame.data.position.x,
+                    frame.data.position.y);
         ImGui::TableNextColumn();
-        ImGui::Text("(%.1f, %.1f)", frame.velocity.x, frame.velocity.y);
+        ImGui::Text("(%.1f, %.1f)", frame.data.velocity.x,
+                    frame.data.velocity.y);
         ImGui::TableNextColumn();
-        ImGui::Text("%d", frame.fuel);
+        ImGui::Text("%d", frame.data.fuel);
         ImGui::TableNextColumn();
-        ImGui::Text("%d", frame.rotate);
+        ImGui::Text("%d", frame.data.rotate);
         ImGui::TableNextColumn();
-        ImGui::Text("%d", frame.power);
+        ImGui::Text("%d", frame.data.power);
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", to_string(frame.status).data());
       }
     }
     ImGui::EndTable();
@@ -91,48 +105,36 @@ void draw_history(const game_data &data) {
   ImGui::End();
 }
 
-void draw_gui(game_data &data, const lander &lander) {
+void draw_gui(game_data &game, const lander &lander) {
   // Example ImGui window
   if (ImGui::Begin("Data")) {
-    ImGui::Text("Status: %s", to_string(data.simu.current_status()).data());
-    ImGui::Checkbox("Show trajectory", &data.show_trajectory);
+    ImGui::Text("Status: %s", to_string(game.simu.simulation_status()).data());
+    ImGui::Checkbox("Show trajectory", &game.show_trajectory);
 
-    if (data.current_file) {
-      ImGui::Text("File: %s", data.current_file->filename().string().c_str());
-      ImGui::Text("Frame count: %d", data.simu.frame_count());
+    if (game.current_file) {
+      ImGui::Text("File: %s", game.current_file->filename().string().c_str());
+      ImGui::Text("Frame count: %d", game.simu.frame_count());
       ImGui::Spacing();
 
-      if (data.simu.current_status() == simulation::status::running) {
-        if (ImGui::Button("Pause")) {
+      if (game.is_running()) {
+        if (ImGui::Button("Stop")) {
+          game.stop();
         }
-      } else if (data.simu.current_status() == simulation::status::paused) {
-        if (ImGui::Button("Resume")) {
+      } else {
+        if (ImGui::Button("Play")) {
+          game.play();
         }
-      } else if (data.simu.current_status() == simulation::status::stopped) {
-        if (ImGui::Button("Start")) {
-        }
-      } else if (data.simu.current_status() == simulation::status::landed ||
-                 data.simu.current_status() == simulation::status::crashed ||
-                 data.simu.current_status() == simulation::status::lost) {
-        if (ImGui::Button("Restart")) {
-        }
-      }
-      ImGui::SameLine();
-      if (ImGui::Button("Reset")) {
       }
 
       ImGui::Separator();
 
-      static int selected_frame = 0;
       bool changed = false;
-      if (data.simu.is_running()) {
-        selected_frame = data.simu.current_frame();
-      }
+      selected_frame = game.simu.current_frame();
       int last_selected = selected_frame;
       bool disable_backward = selected_frame == 0;
-      bool disable_forward = selected_frame == data.simu.frame_count() - 1;
+      bool disable_forward = selected_frame == game.simu.frame_count() - 1;
 
-      ImGui::Text("History size: %d", data.simu.frame_count() - 1);
+      ImGui::Text("History size: %d", game.simu.frame_count() - 1);
       if (disable_backward) {
         ImGui::BeginDisabled();
       }
@@ -148,8 +150,8 @@ void draw_gui(game_data &data, const lander &lander) {
       }
       ImGui::SameLine();
       if (ImGui::SliderInt("##History", &selected_frame, 0,
-                           data.simu.frame_count() - 1)) {
-        // ImGui::Text("Selected frame: %d", selected_frame);
+                           game.simu.frame_count() - 1)) {
+        game.stop();
       }
       if (ImGui::IsItemActive()) {
         changed = true;
@@ -161,38 +163,38 @@ void draw_gui(game_data &data, const lander &lander) {
       if (ImGui::Button(">")) {
         selected_frame++;
         changed = true;
-        if (selected_frame >= data.simu.frame_count()) {
-          selected_frame = data.simu.frame_count() - 1;
+        if (selected_frame >= game.simu.frame_count()) {
+          selected_frame = game.simu.frame_count() - 1;
         }
       }
       if (disable_forward) {
         ImGui::EndDisabled();
       }
       if (changed) {
-        data.simu.set_history_point(selected_frame);
+        game.simu.set_history_point(selected_frame);
       }
 
       ImGui::Separator();
 
       ImGui::Columns(2);
 
-      ImGui::Text("Position: %.2f, %.2f", data.simu.current_data().position.x,
-                  data.simu.current_data().position.y);
-      ImGui::Text("Velocity: %.1f, %.1f", data.simu.current_data().velocity.x,
-                  data.simu.current_data().velocity.y);
-      ImGui::Text("Fuel: %d", data.simu.current_data().fuel);
-      ImGui::Text("Rotate: %d", data.simu.current_data().rotate);
-      ImGui::Text("Power: %d", data.simu.current_data().power);
+      ImGui::Text("Position: %.2f, %.2f", game.simu.current_data().position.x,
+                  game.simu.current_data().position.y);
+      ImGui::Text("Velocity: %.1f, %.1f", game.simu.current_data().velocity.x,
+                  game.simu.current_data().velocity.y);
+      ImGui::Text("Fuel: %d", game.simu.current_data().fuel);
+      ImGui::Text("Rotate: %d", game.simu.current_data().rotate);
+      ImGui::Text("Power: %d", game.simu.current_data().power);
 
       ImGui::NextColumn();
 
-      ImGui::Text("Initial Position: %.0f, %.0f", data.initial.position.x,
-                  data.initial.position.y);
-      ImGui::Text("Initial Velocity: %.0f, %.0f", data.initial.velocity.x,
-                  data.initial.velocity.y);
-      ImGui::Text("Initial Fuel: %d", data.initial.fuel);
-      ImGui::Text("Initial Rotate: %d", data.initial.rotate);
-      ImGui::Text("Initial Power: %d", data.initial.power);
+      ImGui::Text("Initial Position: %.0f, %.0f", game.initial.position.x,
+                  game.initial.position.y);
+      ImGui::Text("Initial Velocity: %.0f, %.0f", game.initial.velocity.x,
+                  game.initial.velocity.y);
+      ImGui::Text("Initial Fuel: %d", game.initial.fuel);
+      ImGui::Text("Initial Rotate: %d", game.initial.rotate);
+      ImGui::Text("Initial Power: %d", game.initial.power);
 
       ImGui::Columns(1);
       ImGui::Text("Lander Logical Position: %.2f, %.2f",
@@ -207,7 +209,11 @@ void draw_gui(game_data &data, const lander &lander) {
                             ImGuiTableFlags_SizingStretchProp)) {
         ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthFixed);
         ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthFixed);
-        for (auto &coord : data.coordinates()) {
+        ImGui::TableNextColumn();
+        ImGui::TableHeader("X");
+        ImGui::TableNextColumn();
+        ImGui::TableHeader("Y");
+        for (auto &coord : game.coordinates()) {
           ImGui::TableNextRow();
           ImGui::TableNextColumn();
           ImGui::Text("%.0f", coord.x);
@@ -221,6 +227,6 @@ void draw_gui(game_data &data, const lander &lander) {
     }
   }
   ImGui::End();
-  draw_file_selection(data);
-  draw_history(data);
+  draw_file_selection(game);
+  draw_history(game);
 }

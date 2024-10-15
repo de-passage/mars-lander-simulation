@@ -5,23 +5,6 @@
 #include <cassert>
 #include <cmath>
 
-simulation::status simulation::current_status() const { return status_; }
-
-void simulation::run() {
-  if (status_ == simulation::status::paused) {
-    status_ = simulation::status::running;
-    current_frame_ = history_.size() - 1;
-  } else if (status_ == status::stopped) {
-    status_ = simulation::status::running;
-    current_frame_ = 0;
-  }
-}
-void simulation::pause() {
-  if (status_ == simulation::status::running) {
-    status_ = simulation::status::paused;
-  }
-}
-
 /// Returns true if the simulation keeps running after this turn
 /// False indicates touchdown or crash
 bool simulation::simulate(decision this_turn) {
@@ -50,20 +33,13 @@ bool simulation::simulate(decision this_turn) {
 
   auto next_tick =
       compute_next_tick_(current_frame_, wanted_rotation, wanted_power);
-  bool should_continue = next_tick.change == status_change::none;
-  if (next_tick.change == status_change::land) {
-    status_ = status::landed;
-  } else if (next_tick.change == status_change::crash) {
-    status_ = status::crashed;
-  } else if (next_tick.change == status_change::lost) {
-    status_ = status::lost;
-  }
-  history_.push_back(std::move(next_tick.data));
+  bool should_continue = next_tick.status == status::none;
+  history_.push_back(std::move(next_tick));
   current_frame_++;
   return should_continue;
 }
 
-simulation::status_change
+simulation::status
 simulation::touchdown(const ::coordinates &start,
                       const ::coordinates &next) const {
   assert(coordinates.size() > 1);
@@ -74,20 +50,19 @@ simulation::touchdown(const ::coordinates &start,
       if (current_segment.start.y == current_segment.end.y) {
         if (current.velocity.x <= MAX_HORIZONTAL_SPEED &&
             current.velocity.y <= MAX_VERTICAL_SPEED) {
-          return simulation::status_change::land;
+          return simulation::status::land;
         }
       }
-      return simulation::status_change::crash;
+      return simulation::status::crash;
     }
   }
-  return simulation::status_change::none;
+  return simulation::status::none;
 }
 
 void simulation::set_history_point(int index) {
   assert(index >= 0);
   assert(index < history_.size());
   current_frame_ = index;
-  pause();
   changed_();
 }
 
@@ -97,13 +72,13 @@ void simulation::changed_() const {
   }
 }
 
-simulation::next_tick simulation::compute_next_tick_(int from_frame,
+simulation::tick_data simulation::compute_next_tick_(int from_frame,
                                                      int wanted_rotation,
                                                      int wanted_power) const {
   assert(from_frame <= history_.size() - 1);
   assert(from_frame >= 0);
-  const auto &current = history_[from_frame];
-  next_tick next_data;
+  const auto &current = current_data();
+  tick_data next_data;
   next_data.data.power = wanted_power;
   next_data.data.fuel = current.fuel - wanted_power;
   next_data.data.rotate = wanted_rotation;
@@ -119,9 +94,9 @@ simulation::next_tick simulation::compute_next_tick_(int from_frame,
   if (next_data.data.position.y < 0 ||
       next_data.data.position.y > GAME_HEIGHT ||
       next_data.data.position.x < 0 || next_data.data.position.x > GAME_WIDTH) {
-    next_data.change = status_change::lost;
+    next_data.status = status::lost;
   } else {
-    next_data.change = touchdown(current.position, next_data.data.position);
+    next_data.status = touchdown(current.position, next_data.data.position);
   }
   return next_data;
 }

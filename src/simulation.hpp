@@ -25,14 +25,13 @@ struct simulation {
   constexpr simulation(simulation &&) = delete;
   constexpr simulation &operator=(const simulation &) = delete;
   constexpr simulation &operator=(simulation &&) = delete;
-  enum class status { stopped, crashed, running, landed, paused, lost };
-  enum class status_change { none, land, crash, lost };
+  enum class status { none, land, crash, lost };
 
   using duration = std::chrono::nanoseconds;
 
-  struct next_tick {
+  struct tick_data {
     simulation_data data;
-    status_change change{status_change::none};
+    simulation::status status{simulation::status::none};
   };
 
   // void tick(duration delta);
@@ -43,32 +42,50 @@ struct simulation {
 
   bool simulate(decision this_turn);
 
-  [[nodiscard]] status_change touchdown(const coordinates &current,
-                                        const coordinates &next) const;
-  [[nodiscard]] status current_status() const;
-  [[nodiscard]] inline bool is_running() const {
-    return status_ == status::running;
+  [[nodiscard]] inline bool is_finished() const {
+    return current_frame_ >= history_.size() - 1;
   }
+
+  [[nodiscard]] status touchdown(const coordinates &current,
+                                        const coordinates &next) const;
 
   [[nodiscard]] inline int current_frame() const { return current_frame_; }
   [[nodiscard]] inline int frame_count() const { return history_.size(); }
-
-  [[nodiscard]] inline const simulation_data &current_data() const {
+  [[nodiscard]] inline const tick_data &current_tick() const {
     return history_[current_frame_];
   }
-  [[nodiscard]] inline const simulation_data &next_data() const {
+  [[nodiscard]] inline const tick_data &next_tick() const {
     int frame =
-        std::max(current_frame_ + 1, static_cast<int>(history_.size() - 1));
+        std::min(current_frame_ + 1, static_cast<int>(history_.size() - 1));
     return history_[frame];
   }
 
-  void run();
-  void pause();
+  [[nodiscard]] inline const simulation_data &current_data() const {
+    return current_tick().data;
+  }
+  [[nodiscard]] inline const simulation_data &next_data() const {
+    return next_tick().data;
+  }
+  [[nodiscard]] inline simulation::status current_status() const {
+    return current_tick().status;
+  }
+  [[nodiscard]] inline simulation::status next_status() const {
+    return next_tick().status;
+  }
+
+  inline bool advance_frame() {
+    current_frame_++;
+    if (current_frame_ >= history_.size()) {
+      current_frame_ = history_.size() - 1;
+      return false;
+    }
+    return true;
+  }
 
   coordinate_list coordinates;
 
   const std::vector<decision> &decisions() const { return decision_history_; }
-  const std::vector<simulation_data> &history() const { return history_; }
+  const std::vector<tick_data> &history() const { return history_; }
 
   void on_data_change(std::function<void()> callback) {
     assert(callback != nullptr);
@@ -78,12 +95,16 @@ struct simulation {
     }
   }
 
+  [[nodiscard]] inline simulation::status simulation_status() const {
+    assert(frame_count() > 0);
+    return history_.back().status;
+  }
+
 private:
-  enum status status_ { status::stopped };
   int current_frame_{0};
-  std::vector<simulation_data> history_;
+  std::vector<tick_data> history_;
   std::vector<decision> decision_history_;
-  [[nodiscard]] next_tick compute_next_tick_(int from_frame,
+  [[nodiscard]] tick_data compute_next_tick_(int from_frame,
                                              int wanted_rotation,
                                              int wanted_power) const;
 
@@ -96,13 +117,14 @@ template <DecisionProcess F>
 void simulation::set_data(simulation_data new_data, F &&process) {
   history_.clear(); // must stay before compute_next_tick
   decision_history_.clear();
+  history_.push_back(tick_data{std::move(new_data), status::none});
   current_frame_ = 0;
-  status_ = simulation::status::stopped;
-  history_.push_back(std::move(new_data));
 
-  while (simulate(process(history_.back()))) {
+  while (simulate(process(history_.back().data))) {
   }
 
+  // Needs to be reset since the simulation loop increases it
+  current_frame_ = 0;
   changed_();
 
   assert(history_.size() >= 1);

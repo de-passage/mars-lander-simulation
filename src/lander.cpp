@@ -1,5 +1,6 @@
 #include "lander.hpp"
 #include "constants.hpp"
+#include <iostream>
 
 lander::lander(game_data &data, view_transform transform)
     : transform_{transform} {
@@ -20,21 +21,30 @@ lander::lander(game_data &data, view_transform transform)
 }
 
 void lander::draw(sf::RenderTarget &target, sf::RenderStates states) const {
-  target.draw(lander_triangle, states);
-  target.draw(lander_bottom, states);
+  for (int i = 0; i < thrust_power_; i++) {
+    sf::CircleShape thrust(thrust_);
+    float offset = (i - (thrust_power_ - 1) / 2.0f) * (ellipse_radius) + (ellipse_radius*ellipse_scale_y) / 2;
+    thrust.setPosition(lander_triangle_.getPosition().x + offset,
+                      lander_triangle_.getPosition().y);
+    target.draw(thrust, states);
+  }
+  target.draw(lander_triangle_, states);
+  target.draw(lander_bottom_, states);
 }
 
 void lander::update(const update_data &data, float ratio) {
+  thrust_power_ = data.power;
   current_position_ =
       calculate_position_(data.current_position, data.next_position, ratio);
-  lander_triangle.setPosition(current_position_);
-  lander_bottom.setPosition(current_position_);
+  auto screen_position = transform_.to_screen(current_position_);
+  lander_triangle_.setPosition(screen_position);
+  lander_bottom_.setPosition(screen_position);
 
   current_rotation_ =
       static_cast<float>(data.current_rotation) +
       static_cast<float>(data.next_rotation - data.current_rotation) * ratio;
-  lander_triangle.setRotation(current_rotation_);
-  lander_bottom.setRotation(current_rotation_);
+  lander_triangle_.setRotation(current_rotation_);
+  lander_bottom_.setRotation(current_rotation_);
 }
 
 sf::Vector2f lander::calculate_position_(const coordinates &start,
@@ -44,7 +54,7 @@ sf::Vector2f lander::calculate_position_(const coordinates &start,
       start.y + (end.y - start.y) * ratio,
   };
 
-  return transform_.to_screen(logical);
+  return logical;
 }
 
 void lander::create_shapes_(const coordinates &start, float rotation) {
@@ -64,7 +74,7 @@ void lander::create_shapes_(const coordinates &start, float rotation) {
   triangle.setPosition(position);
   triangle.setRotation(rotation);
 
-  lander_triangle = std::move(triangle);
+  lander_triangle_ = std::move(triangle);
 
   // Bottom marker
   sf::RectangleShape bottom_marker(sf::Vector2f(
@@ -74,7 +84,14 @@ void lander::create_shapes_(const coordinates &start, float rotation) {
   bottom_marker.setPosition(position);
   bottom_marker.setRotation(rotation);
 
-  lander_bottom = bottom_marker;
+  lander_bottom_ = bottom_marker;
+
+  thrust_ = sf::CircleShape(ellipse_radius);
+  thrust_.setScale(ellipse_scale_y, 1.f);
+  thrust_.setFillColor(sf::Color(255, 165, 0));
+  thrust_.setOrigin((lander_size - ellipse_radius) / 2, 0.f);
+  thrust_.setPosition(position);
+  thrust_.setRotation(rotation);
 }
 
 void lander::attach(simulation &simu) {
@@ -85,6 +102,7 @@ void lander::attach(simulation &simu) {
             .next_position = simu.next_data().position,
             .current_rotation = simu.current_data().rotate,
             .next_rotation = simu.next_data().rotate,
+            .power = simu.current_data().power,
         },
         0.f);
   });

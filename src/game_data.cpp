@@ -6,28 +6,19 @@
 
 void game_data::initialize(file_data &loaded) {
   update_coordinates_(std::move(loaded.line));
-  set_initial_parameters_(loaded.data); // Must be called after update_coordinates_
+  set_initial_parameters_(
+      loaded.data); // Must be called after update_coordinates_
+  status_ = status::stopped;
 }
 
-void game_data::reset_simulation() {
-  simu.set_data(initial, decide);
-}
+void game_data::reset_simulation() { simu.set_data(initial, decide); }
 
 void game_data::update_coordinates_(coordinate_list new_coordinates) {
   simu.coordinates = std::move(new_coordinates);
   sf::VertexArray vertices(sf::LineStrip, simu.coordinates.size());
 
-  const float window_width = static_cast<float>(view_size.x);
-  const float window_height = static_cast<float>(view_size.y);
-
   for (size_t i = 0; i < simu.coordinates.size(); ++i) {
-    sf::Vector2f position;
-    position.x = (static_cast<double>(simu.coordinates[i].x) /
-                  static_cast<double>(GAME_WIDTH)) *
-                 window_width;
-    position.y = (1.0f - (static_cast<float>(simu.coordinates[i].y) /
-                          static_cast<double>(GAME_HEIGHT))) *
-                 window_height;
+    sf::Vector2f position = transform.to_screen(simu.coordinates[i]);
     vertices[i].position = position;
     vertices[i].color = sf::Color::Red;
   }
@@ -37,4 +28,17 @@ void game_data::update_coordinates_(coordinate_list new_coordinates) {
 void game_data::set_initial_parameters_(const simulation_data &initial_data) {
   initial = initial_data;
   reset_simulation();
+}
+
+bool game_data::next_frame() {
+  assert(is_running());
+  return simu.advance_frame();
+}
+
+bool game_data::play() {
+  if (simu.is_finished()) {
+    return false;
+  }
+  status_ = status::running;
+  return true;
 }

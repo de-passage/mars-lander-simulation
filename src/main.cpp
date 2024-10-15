@@ -1,83 +1,50 @@
 #include "game_data.hpp"
 #include "gui.hpp"
 #include "load_file.hpp"
+#include "coordinates_utils.hpp"
 
 #include <SFML/Graphics.hpp>
 #include <imgui-SFML.h>
 #include <imgui.h>
 
 #include "lander.hpp"
+#include "trajectory.hpp"
 #include <filesystem>
 #include <iostream>
 #include <optional>
 
-struct trajectory : sf::Drawable {
-
-  trajectory(view_transform transform) : transform_{transform} {}
-
-  void attach(simulation &simu) {
-    simu.on_data_change([this, &simu] {
-      assert(simu.frame_count() > 1);
-      line_.clear();
-      points_.clear();
-
-      for (auto hist : simu.history()) {
-        auto position = transform_.to_screen(hist.position);
-        const auto radius = 2.f;
-        sf::CircleShape point(radius);
-        point.setFillColor(sf::Color::White);
-        point.setPosition(position - sf::Vector2f{radius, radius});
-        points_.push_back(point);
-        line_.append(sf::Vertex{position, sf::Color::White});
-      }
-      line_.setPrimitiveType(sf::LineStrip);
-    });
-  }
-
-  void draw(sf::RenderTarget &target, sf::RenderStates states) const override {
-    for (const auto &point : points_) {
-      target.draw(point);
-    }
-    target.draw(line_);
-  }
-
-private:
-  view_transform transform_;
-
-  sf::VertexArray line_;
-  std::vector<sf::CircleShape> points_;
-};
+void play_simulation(game_data &game, lander &lander);
 
 int main(int argc, const char *argv[]) try {
 
   constexpr int INIT_WIDTH = 700 * 1.5;
   constexpr int INIT_HEIGHT = 300 * 1.5;
 
-  game_data data;
-
-  if (argc == 2 && fs::exists(argv[1])) {
-    data.current_file = fs::path(argv[1]);
-  }
-
   sf::RenderWindow window(sf::VideoMode(INIT_WIDTH, INIT_HEIGHT),
                           "SFML + ImGui Example");
-  data.view_size = window.getSize();
-  view_transform to_screen{data.view_size.x, data.view_size.y};
+  auto window_size = window.getSize();
+  view_transform to_screen{window_size.x, window_size.y};
 
-  lander lander{data, to_screen};
-  lander.attach(data.simu);
+  game_data game{to_screen};
+
+  if (argc == 2 && fs::exists(argv[1])) {
+    game.current_file = fs::path(argv[1]);
+  }
+
+  lander lander{game, to_screen};
+  lander.attach(game.simu);
   trajectory traj{to_screen};
-  traj.attach(data.simu);
+  traj.attach(game.simu);
 
-  if (data.current_file) {
-    auto loaded = load_file(data.current_file.value());
-    data.initialize(loaded);
+  if (game.current_file) {
+    auto loaded = load_file(game.current_file.value());
+    game.initialize(loaded);
   } else {
-    auto paths = path_list(data.resource_path);
+    auto paths = path_list(game.resource_path);
     if (!paths.empty()) {
-      data.current_file = paths.front();
-      auto loaded = load_file(data.current_file.value());
-      data.initialize(loaded);
+      game.current_file = paths.front();
+      auto loaded = load_file(game.current_file.value());
+      game.initialize(loaded);
     }
   }
 
@@ -91,8 +58,6 @@ int main(int argc, const char *argv[]) try {
   }
 
   sf::Clock deltaClock;
-  using clock = std::chrono::steady_clock;
-  auto last_time = clock::now();
   while (window.isOpen()) {
     sf::Event event;
     while (window.pollEvent(event)) {
@@ -110,35 +75,19 @@ int main(int argc, const char *argv[]) try {
 
     // Start new ImGui frame
     ImGui::SFML::Update(window, deltaClock.restart());
-    draw_gui(data, lander);
+    draw_gui(game, lander);
 
     // Clear SFML window
     window.clear();
 
-    if (data.current_file) {
-      auto now = clock::now();
-      if (data.simu.is_running()) {
-        using namespace std::chrono_literals;
-        auto delta = now - last_time;
-        auto elapsed_ratio = static_cast<double>((1s).count()) /
-                             static_cast<double>(delta.count());
-
-        const auto &current_data = data.simu.current_data();
-        const auto &next_data = data.simu.next_data();
-        lander.update(
-            lander::update_data{.current_position = current_data.position,
-                                .next_position = next_data.position,
-                                .current_rotation = current_data.rotate,
-                                .next_rotation = next_data.rotate},
-            elapsed_ratio);
-      }
-      last_time = now;
+    if (game.current_file) {
+      play_simulation(game, lander);
 
       window.draw(lander);
-      if (data.show_trajectory) {
+      if (game.show_trajectory) {
         window.draw(traj);
       }
-      window.draw(data.line);
+      window.draw(game.line);
     }
     ImGui::SFML::Render(window);
 
@@ -153,4 +102,41 @@ int main(int argc, const char *argv[]) try {
 } catch (std::exception &e) {
   std::cerr << "Error: " << e.what() << std::endl;
   return 1;
+}
+
+void play_simulation(game_data &game, lander &lander) {
+  using clock = std::chrono::steady_clock;
+  using namespace std::chrono;
+  using namespace std::chrono_literals;
+
+  static auto last_time = clock::now();
+  static clock::duration frame = 0s;
+
+  auto now = clock::now();
+  if (game.is_running()) {
+    auto delta = now - last_time;
+    frame += delta;
+    if (frame >= 1s) {
+      frame -= 1s;
+      if (!game.next_frame()) {
+        game.stop();
+      }
+    }
+
+    auto elapsed_ratio = duration_cast<duration<double>>(frame) / duration_cast<duration<double>>(1s);
+
+    const auto &current_data = game.simu.current_data();
+    const auto &next_data = game.simu.next_data();
+    std::cerr << "Current power: " << current_data.power << std::endl;
+    lander.update(lander::update_data{.current_position = current_data.position,
+                                      .next_position = next_data.position,
+                                      .current_rotation = current_data.rotate,
+                                      .next_rotation = next_data.rotate,
+                                      .power = current_data.power
+                                      },
+                  elapsed_ratio);
+  } else {
+    frame = 0s;
+  }
+  last_time = now;
 }

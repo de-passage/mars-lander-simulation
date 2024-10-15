@@ -72,9 +72,9 @@ struct simulation {
 
   void on_data_change(std::function<void()> callback) {
     assert(callback != nullptr);
-    on_data_change_ = std::move(callback);
+    on_data_change_.push_back(std::move(callback));
     if (history_.size() > 0) {
-      on_data_change_();
+      on_data_change_.back()();
     }
   }
 
@@ -87,7 +87,9 @@ private:
                                              int wanted_rotation,
                                              int wanted_power) const;
 
-  std::function<void()> on_data_change_{nullptr};
+  std::vector<std::function<void()>> on_data_change_{};
+
+  void changed_() const;
 };
 
 template <DecisionProcess F>
@@ -101,9 +103,7 @@ void simulation::set_data(simulation_data new_data, F &&process) {
   while (simulate(process(history_.back()))) {
   }
 
-  if (on_data_change_ != nullptr) {
-    on_data_change_();
-  }
+  changed_();
 
   assert(history_.size() >= 1);
 }

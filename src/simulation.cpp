@@ -79,8 +79,12 @@ void simulation::set_history_point(int index) {
   assert(index < history_.size());
   current_frame_ = index;
   pause();
-  if (on_data_change_) {
-    on_data_change_();
+  changed_();
+}
+
+void simulation::changed_() const {
+  for (auto &callback : on_data_change_) {
+    callback();
   }
 }
 

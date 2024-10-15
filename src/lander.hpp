@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game_data.hpp"
+#include "view_transform.hpp"
 #include <SFML/Graphics.hpp>
 #include <SFML/System/Vector2.hpp>
 
@@ -9,7 +10,7 @@ class lander : public sf::Drawable {
   const float lander_size = 20.f;
 
 public:
-  lander(game_data &data);
+  lander(game_data &data, view_transform transform);
   virtual void draw(sf::RenderTarget &target,
                     sf::RenderStates states) const override;
 
@@ -36,8 +37,6 @@ public:
 private:
   coordinates current_position_;
   float current_rotation_;
-  unsigned int height;
-  unsigned int width;
 
   sf::ConvexShape lander_triangle;
   sf::RectangleShape lander_bottom;
@@ -45,4 +44,5 @@ private:
   sf::Vector2f calculate_position_(const coordinates &start,
                                    const coordinates &end, float ratio);
   void create_shapes_(const coordinates &start, float rotation);
+  view_transform transform_;
 };

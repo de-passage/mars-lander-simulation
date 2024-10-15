@@ -2,10 +2,8 @@
 #include "constants.hpp"
 #include <iostream>
 
-lander::lander(game_data &data)
-    : height{data.view_size.y}, width{data.view_size.x} {
-  assert(height > 0);
-  assert(width > 0);
+lander::lander(game_data &data, view_transform transform)
+    : transform_{transform} {
   const simulation_data *current;
   if (data.simu.frame_count() > 0) {
     current = &data.simu.current_data();
@@ -42,17 +40,12 @@ void lander::update(const update_data &data, float ratio) {
 
 sf::Vector2f lander::calculate_position_(const coordinates &start,
                                          const coordinates &end, float ratio) {
-  const float window_width = static_cast<float>(width);
-  const float window_height = static_cast<float>(height);
+  sf::Vector2f logical{
+      start.x + (end.x - start.x) * ratio,
+      start.y + (end.y - start.y) * ratio,
+  };
 
-  const float logical_x = start.x + (end.x - start.x) * ratio;
-  const float logical_y = start.y + (end.y - start.y) * ratio;
-
-  sf::Vector2f position;
-  position.x = (logical_x / static_cast<float>(GAME_WIDTH)) * window_width;
-  position.y =
-      (1.0f - (logical_y / static_cast<float>(GAME_HEIGHT))) * window_height;
-  return position;
+  return transform_.to_screen(logical);
 }
 
 void lander::create_shapes_(const coordinates &start, float rotation) {

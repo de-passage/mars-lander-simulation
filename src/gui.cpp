@@ -8,6 +8,8 @@
 
 void draw_file_selection(game_data &data) {
   if (ImGui::Begin("File Selection")) {
+    ImGui::Text("Files in %s", data.resource_path.c_str());
+    ImGui::Separator();
     if (fs::exists(data.resource_path)) {
       auto paths = path_list(data.resource_path);
       for (const auto &file : paths) {
@@ -77,6 +79,8 @@ void draw_history(const game_data &data) {
 
     ImGui::NextColumn();
     ImGui::Text("Decisions");
+    ImVec2 x = ImGui::CalcTextSize("Position");
+    ImGui::Dummy(x);
     for (const auto &decision : data.simu.decisions()) {
       ImGui::Text("Rotate: %d, Power: %d", decision.rotate, decision.power);
     }
@@ -86,8 +90,9 @@ void draw_history(const game_data &data) {
 
 void draw_gui(game_data &data, const lander &lander) {
   // Example ImGui window
-  if (ImGui::Begin("Coordinates")) {
+  if (ImGui::Begin("Data")) {
     ImGui::Text("Status: %s", to_string(data.simu.current_status()).data());
+    ImGui::Checkbox("Show trajectory", &data.show_trajectory);
 
     if (data.current_file) {
       ImGui::Text("File: %s", data.current_file->filename().string().c_str());

@@ -119,7 +119,7 @@ std::optional<T> intersection(const segment<T> &s1, const segment<T> &s2) {
       static_cast<double>(denominator);
 
   double u =
-      static_cast<double>((x1 - x2) * (y1 - y2) - (y1 - y3) * (x1 - x3)) /
+      static_cast<double>((x1 - x3) * (y1 - y2) - (y1 - y3) * (x1 - x2)) /
       static_cast<double>(denominator);
 
   if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {

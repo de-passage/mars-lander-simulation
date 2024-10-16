@@ -39,6 +39,8 @@ struct world_data : sf::Drawable {
   void pause() { generating_ = false; }
 
   bool generating() const { return generating_; }
+  bool generated() const { return has_values() && !generating_; }
+  bool has_values() const { return ga.generated(); }
 
   std::atomic<bool> keep_running{true};
 

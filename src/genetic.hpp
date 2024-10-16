@@ -87,6 +87,25 @@ struct ga_data {
 
   size_t current_generation_name() { return current_generation_name_; }
 
+  struct fitness_values {
+    fitness_score score;
+
+    double fuel_score;
+    double vertical_speed_score;
+    double horizontal_speed_score;
+    double dist_score;
+
+    double weighted_fuel_score;
+    double weighted_vertical_speed_score;
+    double weighted_horizontal_speed_score;
+    double weighted_dist_score;
+
+    double distance;
+
+    int multiplier;
+  };
+  fitness_values calculate_fitness(const simulation::simulation_result &result) const;
+
 private:
   mutable std::mutex mutex_;
   mutable std::atomic<bool> tainted_{true};
@@ -101,8 +120,7 @@ private:
 
   simulation::simulation_result play(individual &individual);
   segment<coordinates> find_landing_site_() const;
-  fitness_score
-  calculate_fitness_(const simulation::simulation_result &result) const;
+  fitness_score calculate_fitness_(const simulation::simulation_result &result) const;
   fitness_score_list calculate_fitness_() const;
   void play_();
 

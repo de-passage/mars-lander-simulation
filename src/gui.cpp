@@ -135,14 +135,14 @@ void draw_history(const simulation::simulation_result &simu) {
   if (ImGui::Begin("Command History", nullptr,
                    ImGuiWindowFlags_HorizontalScrollbar)) {
 
-    ImGui::Text("Simulation result: %s",
-                to_string(simu.final_status).data());
+    ImGui::Text("Simulation result: %s", to_string(simu.final_status).data());
     ImGui::Separator();
     ImGui::Columns(2);
     draw_frames(simu.history);
 
     ImGui::NextColumn();
-    draw_decision_history(simu.decisions);;
+    draw_decision_history(simu.decisions);
+    ;
   }
   ImGui::End();
 }
@@ -261,7 +261,50 @@ bool input_rate(const char *label, float &value) {
   return false;
 }
 
-void draw_generation_results(world_data &world) {
+int draw_generation_results(const ga_data &ga) {
+  auto results = ga.current_generation_results();
+  std::vector<size_t> landed;
+  std::vector<std::pair<size_t, ga_data::fitness_values>> fitness_values;
+
+  for (size_t i = 0; i < results.size(); ++i) {
+    if (results[i].final_status == simulation::status::land) {
+      landed.push_back(i);
+    }
+    fitness_values.emplace_back(i, ga.calculate_fitness(results[i]));
+  }
+
+  auto mx = *std::max_element(fitness_values.begin(), fitness_values.end(),
+                              [](const auto &a, const auto &b) {
+                                return a.second.score < b.second.score;
+                              });
+
+  if (landed.empty()) {
+    ImGui::Text("No landings yet.");
+  } else {
+    std::ostringstream ss;
+    ss << "Landed: ";
+    bool sep = false;
+    for (auto i : landed) {
+      if (sep) {
+        ss << ", ";
+      }
+      ss << i;
+      sep = true;
+    }
+    ImGui::Text("%s", ss.str().c_str());
+  }
+
+  ImGui::Text("Best score: %.2f", mx.second.score);
+  ImGui::SameLine();
+  ImGui::Text("Best individual: %zu", mx.first);
+  ImGui::SameLine();
+  if (ImGui::Button("Select")) {
+    return mx.first;
+  }
+  return -1;
+}
+
+void draw_generation_controls(world_data &world) {
   ImGui::Text("Generation %zu", world.ga.current_generation_name());
   ImGui::BeginDisabled(world.generating());
   if (ImGui::Button("Next Generation")) {
@@ -282,23 +325,47 @@ void draw_generation_results(world_data &world) {
     if (ImGui::Button("Play")) {
       world.start();
     }
-    auto results = world.ga.current_generation_results();
-    std::vector<size_t> landed;
-    for (size_t i = 0; i < results.size(); ++i) {
-      if (results[i].final_status == simulation::status::land) {
-        landed.push_back(i);
-      }
-    }
-
-    if (landed.empty()) {
-      ImGui::Text("No landings yet.");
-    } else {
-      ImGui::Text("Landed: ");
-      for (auto i : landed) {
-        ImGui::Text("Individual %zu", i);
-      }
-    }
   }
+}
+
+void draw_fitness_values(const ga_data::fitness_values &values) {
+  ImGui::Text("Fitness values");
+  ImGui::Text("Score: %.2f", values.score);
+  ImGui::Spacing();
+
+  ImGui::Columns(2);
+
+  ImGui::Text("Raw values");
+  ImGui::Text("Fuel: %.2f", values.fuel_score);
+  ImGui::Text("Vertical speed: %.2f", values.vertical_speed_score);
+  ImGui::Text("Horizontal speed: %.2f", values.horizontal_speed_score);
+  ImGui::Text("Distance: %.2f", values.dist_score);
+
+  ImGui::NextColumn();
+
+  ImGui::Text("Weighted values");
+  ImGui::Text("Fuel: %.2f", values.weighted_fuel_score);
+  ImGui::Text("Vertical speed: %.2f", values.weighted_vertical_speed_score);
+  ImGui::Text("Horizontal speed: %.2f", values.weighted_horizontal_speed_score);
+  ImGui::Text("Distance: %.2f", values.weighted_dist_score);
+  ImGui::Text("Multiplier: %d", values.multiplier);
+
+  ImGui::Columns();
+}
+
+bool draw_algorithm_parameters(ga_data::generation_parameters &params) {
+  ImGui::Text("Parameters");
+  bool update_needed = false;
+  update_needed |= input_rate("Mutation rate", params.mutation_rate);
+  update_needed |= input_rate("Elitism rate", params.elitism_rate);
+  update_needed |=
+      input_rate("Score distance weight", params.distance_weight);
+  update_needed |= input_rate("Score fuel weight", params.fuel_weight);
+  update_needed |=
+      input_rate("Score vspeed weight", params.vertical_speed_weight);
+  update_needed |= input_rate("Score hspeed weight",
+                              params.horizontal_speed_weight);
+  return update_needed;
 }
 
 void draw_ga_control(world_data &world) {
@@ -313,19 +380,7 @@ void draw_ga_control(world_data &world) {
     }
 
     ImGui::Separator();
-    ImGui::Text("Parameters");
-    bool update_needed = false;
-    update_needed |= input_rate("Mutation rate", world.ga_params.mutation_rate);
-    update_needed |= input_rate("Elitism rate", world.ga_params.elitism_rate);
-    update_needed |=
-        input_rate("Score distance weight", world.ga_params.distance_weight);
-    update_needed |=
-        input_rate("Score fuel weight", world.ga_params.fuel_weight);
-    update_needed |= input_rate("Score vspeed weight",
-                                world.ga_params.vertical_speed_weight);
-    update_needed |= input_rate("Score hspeed weight",
-                                world.ga_params.horizontal_speed_weight);
-
+    bool update_needed = draw_algorithm_parameters(world.ga_params);
     ImGui::EndDisabled();
 
     ImGui::Separator();
@@ -333,16 +388,25 @@ void draw_ga_control(world_data &world) {
     update_needed |= ImGui::Checkbox("Keep running", &kr);
     world.keep_running = kr;
 
-    if (world.ga.generated()) {
-      draw_generation_results(world);
+    if (world.has_values()) {
+      int individual_max_index = world.ga.current_generation_results().size() - 1;
+      draw_generation_controls(world);
+
+      if (world.generated()) {
+        int show = draw_generation_results(world.ga);
+        if (show >= 0) {
+          world.selected_individual = show;
+        }
+      }
+
+      ImGui::BeginDisabled(world.generating());
 
       bool show_individual = world.selected_individual.has_value();
       ImGui::Checkbox("Show individual", &show_individual);
 
       int selection =
           world.selected_individual ? *world.selected_individual : 0;
-      if (ImGui::SliderInt("Selected individual", &selection, 0,
-                           world.ga_params.population_size - 1)) {
+      if (ImGui::SliderInt("Selected individual", &selection, 0, individual_max_index)) {
         world.selected_individual = selection;
       } else if (show_individual) {
         if (!world.selected_individual.has_value()) {
@@ -353,11 +417,21 @@ void draw_ga_control(world_data &world) {
       }
 
       if (world.selected_individual.has_value()) {
-        auto results =
-            world.ga.current_generation_results()[*world.selected_individual];
-        draw_frame_data("Selected individual", results.history.back().data);
-        draw_history(results);
+        int i = *world.selected_individual;
+        if (i >= individual_max_index) {
+          world.selected_individual.reset();
+        } else {
+          auto results =
+              world.ga.current_generation_results()[*world.selected_individual];
+
+          draw_frame_data("Selected individual", results.history.back().data);
+          ImGui::Separator();
+          draw_fitness_values(world.ga.calculate_fitness(results));
+          draw_history(results);
+        }
       }
+
+      ImGui::EndDisabled();
     }
     if (update_needed) {
       world.update_ga_params();

@@ -77,7 +77,11 @@ struct generation_thread {
   }
 };
 
-int main(int argc, const char *argv[]) try {
+int main(int argc, const char *argv[])
+#ifdef NDEBUG
+  try
+#endif
+{
 
   sf::RenderWindow window(sf::VideoMode::getDesktopMode(),
                           "SFML + ImGui Example");
@@ -140,7 +144,10 @@ int main(int argc, const char *argv[]) try {
   ImGui::SFML::Shutdown();
 
   return 0;
-} catch (std::exception &e) {
+}
+#ifdef NDEBUG
+catch (std::exception &e) {
   std::cerr << "Error: " << e.what() << std::endl;
   return 1;
 }
+#endif

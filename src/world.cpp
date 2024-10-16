@@ -23,7 +23,10 @@ void world_data::draw(sf::RenderTarget &window, sf::RenderStates states) const {
   // ga trajectories
   auto current_generation = ga.current_generation_results();
   if (selected_individual.has_value()) {
-    draw_line_(current_generation[*selected_individual], window, states);
+    int index = selected_individual.value();
+    if (index < current_generation.size()) {
+      draw_line_(current_generation[index], window, states);
+    }
   } else {
     for (auto &result : current_generation) {
       draw_line_(result, window, states);

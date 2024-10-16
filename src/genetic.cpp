@@ -44,38 +44,54 @@ void ga_data::play(generation_parameters params) {
 
 ga_data::fitness_score
 ga_data::calculate_fitness_(const simulation::simulation_result &result) const {
+  return calculate_fitness(result).score;
+}
+
+ga_data::fitness_values
+ga_data::calculate_fitness(const simulation::simulation_result &result) const {
   const auto &last = result.history.back();
   bool success = result.final_status == simulation::status::land;
 
+  fitness_values values;
+
   if (success) {
-    return last.data.fuel * 1000;
+    values.score = last.data.fuel * 1000;
+    return values;
   }
 
   fitness_score remaining_fuel = last.data.fuel;
   coordinates position = last.data.position;
-  int success_multiplier = 1;
+  values.multiplier = 1;
 
-  auto dist = distance(midpoint(landing_site_), position);
+  values.distance = distance(midpoint(landing_site_), position);
   if (position.x < landing_site_.end.x && position.x > landing_site_.start.x) {
-    dist = 0;
-    success_multiplier++;
+    values.distance = 0;
+    values.multiplier++;
   }
 
-  const auto fuel_score = remaining_fuel * params_.fuel_weight;
-  const auto dist_score =
-      static_cast<fitness_score>(dist) * params_.distance_weight;
-  const auto vertical_speed_score =
-      static_cast<fitness_score>(
-          std::max(last.data.velocity.y - MAX_VERTICAL_SPEED, 0.)) *
-      params_.vertical_speed_weight;
-  const auto horizontal_speed_score =
-      static_cast<fitness_score>(
-          std::max(last.data.velocity.x - MAX_HORIZONTAL_SPEED, 0.)) *
-      params_.horizontal_speed_weight;
+  values.fuel_score = remaining_fuel;
+  values.weighted_fuel_score = values.fuel_score * params_.fuel_weight;
 
-  return (fuel_score - dist_score - vertical_speed_score -
-          horizontal_speed_score) /
-         success_multiplier; // probly negative
+  values.dist_score = static_cast<fitness_score>(values.distance);
+  values.weighted_dist_score = values.dist_score * params_.distance_weight;
+
+  values.vertical_speed_score = static_cast<fitness_score>(
+      std::max(std::abs(last.data.velocity.y) - MAX_VERTICAL_SPEED, 0.));
+  values.weighted_vertical_speed_score = values.vertical_speed_score *
+                                         values.vertical_speed_score *
+                                         params_.vertical_speed_weight;
+
+  values.horizontal_speed_score = static_cast<fitness_score>(
+      std::max(std::abs(last.data.velocity.x) - MAX_HORIZONTAL_SPEED, 0.));
+  values.weighted_horizontal_speed_score = values.horizontal_speed_score *
+                                           values.horizontal_speed_score *
+                                           params_.horizontal_speed_weight;
+
+  values.score = (values.weighted_fuel_score - values.weighted_dist_score -
+                  values.weighted_vertical_speed_score -
+                  values.weighted_horizontal_speed_score) /
+                 values.multiplier; // probly negative
+  return values;
 }
 
 ga_data::fitness_score_list ga_data::calculate_fitness_() const {

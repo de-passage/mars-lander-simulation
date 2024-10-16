@@ -55,25 +55,27 @@ ga_data::calculate_fitness_(const simulation::simulation_result &result) const {
   coordinates position = last.data.position;
   int success_multiplier = 1;
 
-  auto dist = distance_to_segment(landing_site_, position);
+  auto dist = distance(midpoint(landing_site_), position);
   if (position.x < landing_site_.end.x && position.x > landing_site_.start.x) {
     dist = 0;
     success_multiplier++;
   }
 
   const auto fuel_score = remaining_fuel * params_.fuel_weight;
-  const auto dist_score = static_cast<fitness_score>(dist) * params_.distance_weight;
+  const auto dist_score =
+      static_cast<fitness_score>(dist) * params_.distance_weight;
   const auto vertical_speed_score =
       static_cast<fitness_score>(
-          std::abs(MAX_VERTICAL_SPEED - last.data.velocity.y)) *
+          std::max(last.data.velocity.y - MAX_VERTICAL_SPEED, 0.)) *
       params_.vertical_speed_weight;
   const auto horizontal_speed_score =
       static_cast<fitness_score>(
-          std::abs(MAX_HORIZONTAL_SPEED - last.data.velocity.x)) *
+          std::max(last.data.velocity.x - MAX_HORIZONTAL_SPEED, 0.)) *
       params_.horizontal_speed_weight;
 
   return (fuel_score - dist_score - vertical_speed_score -
-         horizontal_speed_score) / success_multiplier; // probly negative
+          horizontal_speed_score) /
+         success_multiplier; // probly negative
 }
 
 ga_data::fitness_score_list ga_data::calculate_fitness_() const {
@@ -176,34 +178,36 @@ void ga_data::next_generation() {
   }
 
   // Elitism
-  size_t elits =
+  size_t elites =
       static_cast<size_t>(this_generation.size() * params_.elitism_rate);
   std::vector<std::pair<fitness_score, size_t>> elite_indices;
-  elite_indices.reserve(elits);
-  for (int i = 0; i < elits; ++i) {
+  elite_indices.reserve(elites);
+  for (int i = 0; i < elites; ++i) {
     elite_indices.push_back({scores[i], i});
   }
   std::sort(elite_indices.begin(), elite_indices.end(),
             [](auto &a, auto &b) { return a.first > b.first; });
 
-  for (size_t i = elits; i < scores.size(); ++i) {
-    for (size_t insert = 0; insert < elite_indices.size(); ++insert) {
-      if (scores[i] > elite_indices[insert].first) {
-        elite_indices.insert(elite_indices.begin() + insert, {scores[i], i});
-        elite_indices.pop_back();
-        break;
+  if (elites != 0) {
+    for (size_t i = elites; i < scores.size(); ++i) {
+      for (size_t insert = 0; insert < elite_indices.size(); ++insert) {
+        if (scores[i] > elite_indices[insert].first) {
+          elite_indices.insert(elite_indices.begin() + insert, {scores[i], i});
+          elite_indices.pop_back();
+          break;
+        }
       }
     }
-  }
-  assert(elite_indices.size() == elits);
-  DEBUG_ONLY({
-    for (int i = 0; i < elite_indices.size() - 1; ++i) {
-      assert(elite_indices[i].first >= elite_indices[i + 1].first);
-    }
-  });
+    assert(elite_indices.size() == elites);
+    DEBUG_ONLY({
+      for (int i = 0; i < elite_indices.size() - 1; ++i) {
+        assert(elite_indices[i].first >= elite_indices[i + 1].first);
+      }
+    });
 
-  for (size_t i = 0; i < elits; ++i) {
-    new_generation.push_back(this_generation[elite_indices[i].second]);
+    for (size_t i = 0; i < elites; ++i) {
+      new_generation.push_back(this_generation[elite_indices[i].second]);
+    }
   }
 
   // Selection

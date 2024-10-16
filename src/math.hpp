@@ -123,7 +123,18 @@ std::optional<T> intersection(const segment<T> &s1, const segment<T> &s2) {
       static_cast<double>(denominator);
 
   if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-    return T{static_cast<U>(x1 + t * (x2 - x1)), static_cast<U>(y1 + t * (y2 - y1))};
+    return T{static_cast<U>(x1 + t * (x2 - x1)),
+             static_cast<U>(y1 + t * (y2 - y1))};
   }
   return std::nullopt;
+}
+
+template <Coordinates T> T midpoint(const segment<T> &s) {
+  return T{(s.start.x + s.end.x) / 2, (s.start.y + s.end.y) / 2};
+}
+
+template <Coordinates T, Coordinates U>
+requires std::is_same_v<std::decay_t<T>, std::decay_t<U>> std::decay_t<T>
+midpoint(T &&p1, U &&p2) {
+  return std::decay_t<T>{(p1.x + p2.x) / 2, (p1.y + p2.y) / 2};
 }

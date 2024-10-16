@@ -22,16 +22,12 @@ void world_data::draw(sf::RenderTarget &window, sf::RenderStates states) const {
 
   // ga trajectories
   auto current_generation = ga.current_generation_results();
-  for (auto &result : current_generation) {
-    sf::VertexArray line(sf::LineStrip);
-    sf::Color color = result.final_status == simulation::status::land
-                          ? sf::Color::Cyan
-                          : sf::Color::Yellow;
-    for (auto &tick : result.history) {
-      auto position = transform.to_screen(tick.data.position);
-      line.append(sf::Vertex{position, color});
+  if (selected_individual.has_value()) {
+    draw_line_(current_generation[*selected_individual], window, states);
+  } else {
+    for (auto &result : current_generation) {
+      draw_line_(result, window, states);
     }
-    window.draw(line, states);
   }
 
   // ground
@@ -43,7 +39,23 @@ void world_data::draw(sf::RenderTarget &window, sf::RenderStates states) const {
 
   window.draw(line, states);
 }
+
+void world_data::draw_line_(const simulation::simulation_result &result,
+                            sf::RenderTarget &window,
+                            sf::RenderStates states) const {
+  sf::VertexArray line(sf::LineStrip);
+  sf::Color color = result.final_status == simulation::status::land
+                        ? sf::Color::Cyan
+                        : sf::Color::Yellow;
+  for (auto &tick : result.history) {
+    auto position = transform.to_screen(tick.data.position);
+    line.append(sf::Vertex{position, color});
+  }
+  window.draw(line, states);
+}
+
 void world_data::set_file_data(file_data loaded) {
+  pause();
   this->loaded_ = loaded;
   if (game) {
     game->initialize(loaded);
@@ -94,11 +106,15 @@ void play_simulation(game_data &game, lander &lander, const config &config) {
   last_time = now;
 }
 
-void world_data::update_ga_params() { ga.set_params(ga_params); }
+void world_data::update_ga_params() {
+  ga.set_params(ga_params);
+  save_params();
+}
 
 void world_data::save_params() {
   std::ofstream file("ga_params.ini");
   file << generation_count << '\n';
+  file << keep_running << '\n';
   file << ga_params.population_size << '\n';
   file << ga_params.mutation_rate << '\n';
   file << ga_params.elitism_rate << '\n';
@@ -114,6 +130,9 @@ void world_data::load_params() {
     return;
   }
   file >> generation_count;
+  bool kr;
+  file >> kr;
+  keep_running = kr;
   file >> ga_params.population_size;
   file >> ga_params.mutation_rate;
   file >> ga_params.elitism_rate;

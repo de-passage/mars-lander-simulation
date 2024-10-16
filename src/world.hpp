@@ -17,7 +17,9 @@ struct world_data : sf::Drawable {
 
   ga_data ga;
   ga_data::generation_parameters ga_params;
+
   unsigned int generation_count{200};
+  std::optional<unsigned int> selected_individual{std::nullopt};
 
   world_data(view_transform to_screen);
 
@@ -26,9 +28,19 @@ struct world_data : sf::Drawable {
   void update();
 
   inline coordinate_list ground_line() const { return loaded_.ground_line; }
-  inline simulation_data initial_values() const { return loaded_.initial_values; }
+  inline simulation_data initial_values() const {
+    return loaded_.initial_values;
+  }
 
-  std::atomic<bool> generating{false};
+  void start() {
+    generating_ = true;
+    selected_individual.reset();
+  }
+  void pause() { generating_ = false; }
+
+  bool generating() const { return generating_; }
+
+  std::atomic<bool> keep_running{true};
 
   void update_ga_params();
 
@@ -36,7 +48,11 @@ struct world_data : sf::Drawable {
   void save_params();
 
 private:
+  std::atomic<bool> generating_{false};
   file_data loaded_;
 
   enum class status { game, genetic_algo } status_{status::genetic_algo};
+
+  void draw_line_(const simulation::simulation_result &result,
+                  sf::RenderTarget &window, sf::RenderStates states) const;
 };

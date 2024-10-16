@@ -21,7 +21,7 @@ void handle_events(sf::RenderWindow &window, const sf::Event &event,
                    world_data &world) {
   const auto close = [&window, &world] {
     window.close();
-    world.generating = false;
+    world.pause();
   };
   if (event.type == sf::Event::Closed) {
     close();
@@ -54,15 +54,15 @@ struct generation_thread {
   }
 
   void background_generation(world_data &world) {
-    while (world.generating) {
+    while (world.generating()) {
       world.ga.next_generation();
       if (world.ga.current_generation_name() >= world.generation_count) {
-        world.generating = false;
+        world.pause();
       } else {
         auto current = world.ga.current_generation_name();
         for (auto& result: world.ga.current_generation_results()) {
-          if (result.final_status == simulation::status::land) {
-            world.generating = false;
+          if (result.final_status == simulation::status::land && !world.keep_running) {
+            world.pause();
           }
         }
       }
@@ -90,6 +90,7 @@ int main(int argc, const char *argv[]) try {
   if (argc == 2 && fs::exists(argv[1])) {
     world.configuration.current_file = fs::path(argv[1]);
   }
+  world.load_params();
 
   if (world.configuration.current_file) {
     world.set_file_data(load_file(world.configuration.current_file.value()));
@@ -122,7 +123,7 @@ int main(int argc, const char *argv[]) try {
     // Start new ImGui frame
     ImGui::SFML::Update(window, deltaClock.restart());
 
-    if (world.generating && ! gen_thread.running) {
+    if (world.generating() && ! gen_thread.running) {
       gen_thread.start(world);
     }
 

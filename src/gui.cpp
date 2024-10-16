@@ -8,6 +8,7 @@
 
 #include <array>
 #include <imgui.h>
+#include <iostream>
 #include <string_view>
 
 void draw_file_selection(world_data &world) {
@@ -69,7 +70,7 @@ void draw_coordinates(const std::vector<coordinates> &coordinates) {
   ImGui::EndTable();
 }
 
-void draw_frames(const simulation &simu) {
+void draw_frames(const std::vector<simulation::tick_data> &simu) {
   ImGui::Text("Frames");
 
   constexpr std::array headers = {"Position", "Velocity", "Fuel",
@@ -84,8 +85,8 @@ void draw_frames(const simulation &simu) {
       ImGui::TableHeader(header);
     }
 
-    for (int i = 0; i < simu.frame_count(); ++i) {
-      const auto &frame = simu.history()[i];
+    for (int i = 0; i < simu.size(); ++i) {
+      const auto &frame = simu[i];
       ImGui::TableNextRow();
       ImGui::TableNextColumn();
       ImGui::Text("(%.2f, %.2f)", frame.data.position.x, frame.data.position.y);
@@ -104,11 +105,11 @@ void draw_frames(const simulation &simu) {
   ImGui::EndTable();
 }
 
-void draw_decision_history(const simulation &simu) {
+void draw_decision_history(const std::vector<decision> &decisions) {
   ImGui::Text("Decisions");
   ImVec2 x = ImGui::CalcTextSize("Position");
   ImGui::Dummy(x);
-  for (const auto &decision : simu.decisions()) {
+  for (const auto &decision : decisions) {
     ImGui::Text("Rotate: %d, Power: %d", decision.rotate, decision.power);
   }
 }
@@ -122,10 +123,26 @@ void draw_history(const simulation &simu) {
                 to_string(simu.simulation_status()).data());
     ImGui::Separator();
     ImGui::Columns(2);
-    draw_frames(simu);
+    draw_frames(simu.history());
 
     ImGui::NextColumn();
-    draw_decision_history(simu);
+    draw_decision_history(simu.decisions());
+  }
+  ImGui::End();
+}
+
+void draw_history(const simulation::simulation_result &simu) {
+  if (ImGui::Begin("Command History", nullptr,
+                   ImGuiWindowFlags_HorizontalScrollbar)) {
+
+    ImGui::Text("Simulation result: %s",
+                to_string(simu.final_status).data());
+    ImGui::Separator();
+    ImGui::Columns(2);
+    draw_frames(simu.history);
+
+    ImGui::NextColumn();
+    draw_decision_history(simu.decisions);;
   }
   ImGui::End();
 }
@@ -244,72 +261,106 @@ bool input_rate(const char *label, float &value) {
   return false;
 }
 
+void draw_generation_results(world_data &world) {
+  ImGui::Text("Generation %zu", world.ga.current_generation_name());
+  ImGui::BeginDisabled(world.generating());
+  if (ImGui::Button("Next Generation")) {
+    world.ga.next_generation();
+  }
+
+  ImGui::EndDisabled();
+  int gen_count = world.generation_count;
+  if (ImGui::InputInt("Generations", &gen_count)) {
+    world.generation_count = std::max(0, gen_count);
+  }
+
+  if (world.generating()) {
+    if (ImGui::Button("Pause")) {
+      world.pause();
+    }
+  } else {
+    if (ImGui::Button("Play")) {
+      world.start();
+    }
+    auto results = world.ga.current_generation_results();
+    std::vector<size_t> landed;
+    for (size_t i = 0; i < results.size(); ++i) {
+      if (results[i].final_status == simulation::status::land) {
+        landed.push_back(i);
+      }
+    }
+
+    if (landed.empty()) {
+      ImGui::Text("No landings yet.");
+    } else {
+      ImGui::Text("Landed: ");
+      for (auto i : landed) {
+        ImGui::Text("Individual %zu", i);
+      }
+    }
+  }
+}
+
 void draw_ga_control(world_data &world) {
   if (ImGui::Begin("Genetic Algorithm")) {
     int pop_size = world.ga_params.population_size;
     if (ImGui::InputInt("Population size", &pop_size)) {
       world.ga_params.population_size = std::max(0, pop_size);
     }
-    ImGui::BeginDisabled(world.generating);
+    ImGui::BeginDisabled(world.generating());
     if (ImGui::Button("Create Generation")) {
       world.ga.play(world.ga_params);
     }
+
+    ImGui::Separator();
+    ImGui::Text("Parameters");
+    bool update_needed = false;
+    update_needed |= input_rate("Mutation rate", world.ga_params.mutation_rate);
+    update_needed |= input_rate("Elitism rate", world.ga_params.elitism_rate);
+    update_needed |=
+        input_rate("Score distance weight", world.ga_params.distance_weight);
+    update_needed |=
+        input_rate("Score fuel weight", world.ga_params.fuel_weight);
+    update_needed |= input_rate("Score vspeed weight",
+                                world.ga_params.vertical_speed_weight);
+    update_needed |= input_rate("Score hspeed weight",
+                                world.ga_params.horizontal_speed_weight);
+
     ImGui::EndDisabled();
 
+    ImGui::Separator();
+    bool kr = world.keep_running;
+    update_needed |= ImGui::Checkbox("Keep running", &kr);
+    world.keep_running = kr;
+
     if (world.ga.generated()) {
-      ImGui::Separator();
-      ImGui::Text("Generation %zu", world.ga.current_generation_name());
-      ImGui::BeginDisabled(world.generating);
-      if (ImGui::Button("Next Generation")) {
-        world.ga.next_generation();
-      }
-      int gen_count = world.generation_count;
-      if (ImGui::InputInt("Generations", &gen_count)) {
-        world.generation_count = std::max(0, gen_count);
-      }
-      bool update_needed = false;
-      update_needed |=
-          input_rate("Mutation rate", world.ga_params.mutation_rate);
-      update_needed |= input_rate("Elitism rate", world.ga_params.elitism_rate);
-      update_needed |=
-          input_rate("Score distance weight", world.ga_params.distance_weight);
-      update_needed |=
-          input_rate("Score fuel weight", world.ga_params.fuel_weight);
-      update_needed |= input_rate("Score vspeed weight",
-                                  world.ga_params.vertical_speed_weight);
-      update_needed |= input_rate("Score hspeed weight",
-                                  world.ga_params.horizontal_speed_weight);
-      ImGui::EndDisabled();
+      draw_generation_results(world);
 
-      if (update_needed) {
-        world.update_ga_params();
-      }
+      bool show_individual = world.selected_individual.has_value();
+      ImGui::Checkbox("Show individual", &show_individual);
 
-      if (world.generating) {
-        if (ImGui::Button("Pause")) {
-          world.generating = false;
+      int selection =
+          world.selected_individual ? *world.selected_individual : 0;
+      if (ImGui::SliderInt("Selected individual", &selection, 0,
+                           world.ga_params.population_size - 1)) {
+        world.selected_individual = selection;
+      } else if (show_individual) {
+        if (!world.selected_individual.has_value()) {
+          world.selected_individual = 0;
         }
       } else {
-        if (ImGui::Button("Play")) {
-          world.generating = true;
-        }
-        auto results = world.ga.current_generation_results();
-        std::vector<size_t> landed;
-        for (size_t i = 0; i < results.size(); ++i) {
-          if (results[i].final_status == simulation::status::land) {
-            landed.push_back(i);
-          }
-        }
-
-        if (landed.empty()) {
-          ImGui::Text("No landings yet.");
-        } else {
-          ImGui::Text("Landed: ");
-          for (auto i : landed) {
-            ImGui::Text("Individual %zu", i);
-          }
-        }
+        world.selected_individual.reset();
       }
+
+      if (world.selected_individual.has_value()) {
+        auto results =
+            world.ga.current_generation_results()[*world.selected_individual];
+        draw_frame_data("Selected individual", results.history.back().data);
+        draw_history(results);
+      }
+    }
+    if (update_needed) {
+      world.update_ga_params();
     }
   }
   ImGui::End();

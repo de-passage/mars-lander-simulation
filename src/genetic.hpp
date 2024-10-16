@@ -61,6 +61,7 @@ struct ga_data {
   void play(generation_parameters params);
 
   void set_data(coordinate_list coordinates, simulation_data initial) {
+    std::lock_guard lock{mutex_};
     coordinates_ = std::move(coordinates);
     initial_ = std::move(initial);
     current_generation_results_.clear();

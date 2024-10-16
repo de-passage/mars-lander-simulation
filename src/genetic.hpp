@@ -49,10 +49,11 @@ struct ga_data {
     float elitism_rate{.1};
     unsigned int population_size{100};
 
-    float fuel_weight = 1.;
-    float vertical_speed_weight = 1.;
-    float horizontal_speed_weight = 1.;
-    float distance_weight = 0.01;
+    float fuel_weight = .01;
+    float vertical_speed_weight = .4;
+    float horizontal_speed_weight = .4;
+    float distance_weight = 1.;
+    float rotation_weight = 1.;
   };
 
   ga_data(coordinate_list coordinates = {}, simulation_data initial = {})
@@ -94,15 +95,15 @@ struct ga_data {
     double vertical_speed_score;
     double horizontal_speed_score;
     double dist_score;
+    double rotation_score;
 
     double weighted_fuel_score;
     double weighted_vertical_speed_score;
     double weighted_horizontal_speed_score;
     double weighted_dist_score;
+    double weighted_rotation_score;
 
     double distance;
-
-    int multiplier;
   };
   fitness_values calculate_fitness(const simulation::simulation_result &result) const;
 

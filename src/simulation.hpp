@@ -36,7 +36,15 @@ struct simulation {
     simulation::status status{simulation::status::none};
   };
 
-  // void tick(duration delta);
+  enum crash_reason {
+    uneven_ground = 1,
+    rotation = 2,
+    v_too_fast = 4,
+    h_too_fast = 8,
+  };
+
+  crash_reason why_crash() const;
+  segment<coord_t> landing_area() const;
 
   template <DecisionProcess F = decltype(do_nothing)>
   void set_data(simulation_data data, F &&process = do_nothing);
@@ -103,6 +111,7 @@ struct simulation {
     std::vector<tick_data> history;
     std::vector<decision> decisions;
     simulation::status final_status;
+    crash_reason reason;
 
     [[nodiscard]] inline bool success() const {
       return final_status == simulation::status::land;
@@ -121,10 +130,12 @@ struct simulation {
 
   struct simulation_result get_simulation_result() && {
     auto status = history_.back().status;
+    auto reason = why_crash();
     return {
         .history = std::move(history_),
         .decisions = std::move(decision_history_),
         .final_status = status,
+        .reason = reason,
     };
   }
 
@@ -133,6 +144,7 @@ struct simulation {
         .history = history_,
         .decisions = decision_history_,
         .final_status = history_.back().status,
+        .reason = why_crash(),
     };
   }
 
@@ -148,7 +160,8 @@ private:
 
   void changed_() const;
 
-  [[nodiscard]] status touchdown_(const coord_t &current, coord_t &next, float& ly) const;
+  [[nodiscard]] status touchdown_(const coord_t &current, coord_t &next,
+                                  float &ly) const;
 };
 
 void simulation::set_data(simulation_data new_data,

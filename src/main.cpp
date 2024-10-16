@@ -49,19 +49,22 @@ struct generation_thread {
       if (thread.joinable()) {
         thread.join();
       }
-      thread = std::thread(&generation_thread::background_generation, this, std::ref(world));
+      thread = std::thread(&generation_thread::background_generation, this,
+                           std::ref(world));
     }
   }
 
   void background_generation(world_data &world) {
     while (world.generating()) {
       world.ga.next_generation();
-      if (world.ga.current_generation_name() >= world.generation_count) {
+      if (world.ga.current_generation_name() >= world.generation_count &&
+          !world.keep_running_after_max_generation) {
         world.pause();
       } else {
         auto current = world.ga.current_generation_name();
-        for (auto& result: world.ga.current_generation_results()) {
-          if (result.final_status == simulation::status::land && !world.keep_running) {
+        for (auto &result : world.ga.current_generation_results()) {
+          if (result.final_status == simulation::status::land &&
+              !world.keep_running_after_solution) {
             world.pause();
           }
         }
@@ -79,7 +82,7 @@ struct generation_thread {
 
 int main(int argc, const char *argv[])
 #ifdef NDEBUG
-  try
+    try
 #endif
 {
 
@@ -127,7 +130,7 @@ int main(int argc, const char *argv[])
     // Start new ImGui frame
     ImGui::SFML::Update(window, deltaClock.restart());
 
-    if (world.generating() && ! gen_thread.running) {
+    if (world.generating() && !gen_thread.running) {
       gen_thread.start(world);
     }
 

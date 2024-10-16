@@ -49,8 +49,8 @@ simulation::status simulation::touchdown_(const coord_t &start, coord_t &next,
     auto current_segment = segment{(*coordinates)[i], (*coordinates)[i + 1]};
     if (segments_intersect(segment{start, next}, current_segment)) {
       if (current_segment.start.y == current_segment.end.y) {
-        if (current.velocity.x <= MAX_HORIZONTAL_SPEED &&
-            current.velocity.y <= MAX_VERTICAL_SPEED) {
+        if (std::abs(current.velocity.x) <= MAX_HORIZONTAL_SPEED &&
+            std::abs(current.velocity.y) <= MAX_VERTICAL_SPEED && current.rotate == 0) {
           auto inter = intersection(current_segment, segment{start, next});
           DEBUG_ONLY({
             if (!inter) {
@@ -67,6 +67,16 @@ simulation::status simulation::touchdown_(const coord_t &start, coord_t &next,
     }
   }
   return simulation::status::none;
+}
+
+segment<coordinates> simulation::landing_area() const {
+  assert(coordinates->size() > 1);
+  for (size_t i = 0; i < coordinates->size() - 1; ++i) {
+    if ((*coordinates)[i].y == (*coordinates)[i + 1].y) {
+      return segment{(*coordinates)[i], (*coordinates)[i + 1]};
+    }
+  }
+  throw std::runtime_error("No landing area found");
 }
 
 void simulation::set_history_point(int index) {
@@ -111,3 +121,29 @@ simulation::tick_data simulation::compute_next_tick_(int from_frame,
   }
   return next_data;
 }
+simulation::crash_reason
+simulation::why_crash() const {
+  auto& last = history_.back();
+  auto landing = landing_area();
+  assert(last.status == status::crash);
+  int reason = 0;
+
+  if (last.data.position.y < landing.start.y || last.data.position.y > landing.end.y) {
+    reason |= crash_reason::uneven_ground;
+  }
+
+  if (last.data.velocity.y < -MAX_VERTICAL_SPEED) {
+    reason |= crash_reason::v_too_fast;
+  }
+
+  if (last.data.velocity.x < -MAX_HORIZONTAL_SPEED ||
+      last.data.velocity.x > MAX_HORIZONTAL_SPEED) {
+    reason |= crash_reason::h_too_fast;
+  }
+
+  if (last.data.rotate != 0) {
+    reason |= crash_reason::rotation;
+  }
+  return static_cast<crash_reason>(reason);
+}
+

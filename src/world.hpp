@@ -42,7 +42,8 @@ struct world_data : sf::Drawable {
   bool generated() const { return has_values() && !generating_; }
   bool has_values() const { return ga.generated(); }
 
-  std::atomic<bool> keep_running{true};
+  std::atomic<bool> keep_running_after_solution{false};
+  std::atomic<bool> keep_running_after_max_generation{true};
 
   void update_ga_params();
 

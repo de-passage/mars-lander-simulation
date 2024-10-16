@@ -54,19 +54,12 @@ ga_data::calculate_fitness(const simulation::simulation_result &result) const {
 
   fitness_values values;
 
-  if (success) {
-    values.score = last.data.fuel * 1000;
-    return values;
-  }
-
   fitness_score remaining_fuel = last.data.fuel;
   coordinates position = last.data.position;
-  values.multiplier = 1;
 
   values.distance = distance(midpoint(landing_site_), position);
   if (position.x < landing_site_.end.x && position.x > landing_site_.start.x) {
     values.distance = 0;
-    values.multiplier++;
   }
 
   values.fuel_score = remaining_fuel;
@@ -87,10 +80,12 @@ ga_data::calculate_fitness(const simulation::simulation_result &result) const {
                                            values.horizontal_speed_score *
                                            params_.horizontal_speed_weight;
 
+  values.rotation_score = static_cast<fitness_score>(std::abs(last.data.rotate));
+  values.weighted_rotation_score = values.rotation_score * values.rotation_score * params_.rotation_weight;
+
   values.score = (values.weighted_fuel_score - values.weighted_dist_score -
                   values.weighted_vertical_speed_score -
-                  values.weighted_horizontal_speed_score) /
-                 values.multiplier; // probly negative
+                  values.weighted_horizontal_speed_score - values.weighted_rotation_score);
   return values;
 }
 
@@ -186,6 +181,12 @@ void ga_data::next_generation() {
       worst_score = scores[i];
     }
   }
+
+
+  if (best_score == worst_score) {
+    best_score = 1;
+    worst_score = 0;
+  }
   for (auto &score : scores) {
     score = (score - worst_score) / (best_score - worst_score);
     DEBUG_ONLY(auto last = total);
@@ -223,6 +224,7 @@ void ga_data::next_generation() {
 
     for (size_t i = 0; i < elites; ++i) {
       new_generation.push_back(this_generation[elite_indices[i].second]);
+      mutate(new_generation.back(), params_);
     }
   }
 

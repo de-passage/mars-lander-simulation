@@ -117,7 +117,8 @@ void world_data::update_ga_params() {
 void world_data::save_params() {
   std::ofstream file("ga_params.ini");
   file << generation_count << '\n';
-  file << keep_running << '\n';
+  file << keep_running_after_solution << '\n';
+  file << keep_running_after_max_generation << '\n';
   file << ga_params.population_size << '\n';
   file << ga_params.mutation_rate << '\n';
   file << ga_params.elitism_rate << '\n';
@@ -125,6 +126,7 @@ void world_data::save_params() {
   file << ga_params.distance_weight << '\n';
   file << ga_params.vertical_speed_weight << '\n';
   file << ga_params.horizontal_speed_weight << '\n';
+  file << ga_params.rotation_weight << '\n';
 }
 
 void world_data::load_params() {
@@ -135,7 +137,9 @@ void world_data::load_params() {
   file >> generation_count;
   bool kr;
   file >> kr;
-  keep_running = kr;
+  keep_running_after_solution = kr;
+  file >> kr;
+  keep_running_after_max_generation = kr;
   file >> ga_params.population_size;
   file >> ga_params.mutation_rate;
   file >> ga_params.elitism_rate;
@@ -143,4 +147,5 @@ void world_data::load_params() {
   file >> ga_params.distance_weight;
   file >> ga_params.vertical_speed_weight;
   file >> ga_params.horizontal_speed_weight;
+  file >> ga_params.rotation_weight;
 }

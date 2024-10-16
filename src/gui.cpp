@@ -114,6 +114,21 @@ void draw_decision_history(const std::vector<decision> &decisions) {
   }
 }
 
+std::string crash_reason_to_string(simulation::crash_reason reason) {
+  std::array reasons = {"Uneven ground", "Rotation", "Vertical speed",
+                        "Horizontal speed"};
+  std::string result;
+  for (int i = 0; i < 4; ++i) {
+    if ((reason & (1 << i)) == (1 << i)) {
+      if (!result.empty()) {
+        result += ", ";
+      }
+      result += reasons[i];
+    }
+  }
+  return result;
+}
+
 void draw_history(const simulation &simu) {
   if (ImGui::Begin("Command History", nullptr,
                    ImGuiWindowFlags_HorizontalScrollbar)) {
@@ -121,6 +136,11 @@ void draw_history(const simulation &simu) {
     ImGui::Text("Frame count: %d", simu.frame_count());
     ImGui::Text("Simulation result: %s",
                 to_string(simu.simulation_status()).data());
+    if (simu.simulation_status() == simulation::status::crash) {
+      ImGui::Text("Crash reason: %s",
+                  crash_reason_to_string(simu.why_crash()).data());
+    }
+    ImGui::Text("Current frame: %d", simu.current_frame());
     ImGui::Separator();
     ImGui::Columns(2);
     draw_frames(simu.history());
@@ -136,6 +156,10 @@ void draw_history(const simulation::simulation_result &simu) {
                    ImGuiWindowFlags_HorizontalScrollbar)) {
 
     ImGui::Text("Simulation result: %s", to_string(simu.final_status).data());
+    if (simu.final_status == simulation::status::crash) {
+      ImGui::Text("Crash reason: %s",
+                  crash_reason_to_string(simu.reason).data());
+    }
     ImGui::Separator();
     ImGui::Columns(2);
     draw_frames(simu.history);
@@ -313,9 +337,12 @@ void draw_generation_controls(world_data &world) {
 
   ImGui::EndDisabled();
   int gen_count = world.generation_count;
+
+  ImGui::BeginDisabled(world.keep_running_after_max_generation);
   if (ImGui::InputInt("Generations", &gen_count)) {
     world.generation_count = std::max(0, gen_count);
   }
+  ImGui::EndDisabled();
 
   if (world.generating()) {
     if (ImGui::Button("Pause")) {
@@ -340,6 +367,7 @@ void draw_fitness_values(const ga_data::fitness_values &values) {
   ImGui::Text("Vertical speed: %.2f", values.vertical_speed_score);
   ImGui::Text("Horizontal speed: %.2f", values.horizontal_speed_score);
   ImGui::Text("Distance: %.2f", values.dist_score);
+  ImGui::Text("Rotation: %.2f", values.rotation_score);
 
   ImGui::NextColumn();
 
@@ -348,7 +376,7 @@ void draw_fitness_values(const ga_data::fitness_values &values) {
   ImGui::Text("Vertical speed: %.2f", values.weighted_vertical_speed_score);
   ImGui::Text("Horizontal speed: %.2f", values.weighted_horizontal_speed_score);
   ImGui::Text("Distance: %.2f", values.weighted_dist_score);
-  ImGui::Text("Multiplier: %d", values.multiplier);
+  ImGui::Text("Rotation: %.2f", values.weighted_rotation_score);
 
   ImGui::Columns();
 }
@@ -358,13 +386,13 @@ bool draw_algorithm_parameters(ga_data::generation_parameters &params) {
   bool update_needed = false;
   update_needed |= input_rate("Mutation rate", params.mutation_rate);
   update_needed |= input_rate("Elitism rate", params.elitism_rate);
-  update_needed |=
-      input_rate("Score distance weight", params.distance_weight);
+  update_needed |= input_rate("Score distance weight", params.distance_weight);
   update_needed |= input_rate("Score fuel weight", params.fuel_weight);
   update_needed |=
       input_rate("Score vspeed weight", params.vertical_speed_weight);
-  update_needed |= input_rate("Score hspeed weight",
-                              params.horizontal_speed_weight);
+  update_needed |=
+      input_rate("Score hspeed weight", params.horizontal_speed_weight);
+  update_needed |= input_rate("Score rotation weight", params.rotation_weight);
   return update_needed;
 }
 
@@ -384,12 +412,18 @@ void draw_ga_control(world_data &world) {
     ImGui::EndDisabled();
 
     ImGui::Separator();
-    bool kr = world.keep_running;
-    update_needed |= ImGui::Checkbox("Keep running", &kr);
-    world.keep_running = kr;
+    bool kras = world.keep_running_after_solution;
+    bool kramg = world.keep_running_after_max_generation;
+    update_needed |=
+        ImGui::Checkbox("Keep running after solution found", &kras);
+    update_needed |=
+        ImGui::Checkbox("Keep running after max generation", &kramg);
+    world.keep_running_after_solution = kras;
+    world.keep_running_after_max_generation = kramg;
 
     if (world.has_values()) {
-      int individual_max_index = world.ga.current_generation_results().size() - 1;
+      int individual_max_index =
+          world.ga.current_generation_results().size() - 1;
       draw_generation_controls(world);
 
       if (world.generated()) {
@@ -406,7 +440,8 @@ void draw_ga_control(world_data &world) {
 
       int selection =
           world.selected_individual ? *world.selected_individual : 0;
-      if (ImGui::SliderInt("Selected individual", &selection, 0, individual_max_index)) {
+      if (ImGui::SliderInt("Selected individual", &selection, 0,
+                           individual_max_index)) {
         world.selected_individual = selection;
       } else if (show_individual) {
         if (!world.selected_individual.has_value()) {
@@ -418,7 +453,7 @@ void draw_ga_control(world_data &world) {
 
       if (world.selected_individual.has_value()) {
         int i = *world.selected_individual;
-        if (i >= individual_max_index) {
+        if (i > individual_max_index) {
           world.selected_individual.reset();
         } else {
           auto results =

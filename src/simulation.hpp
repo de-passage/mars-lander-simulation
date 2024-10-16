@@ -8,8 +8,8 @@
 #include "simulation_data.hpp"
 
 template <class F>
-concept DecisionProcess = requires(F f) {
-  { f(std::declval<simulation_data>()) } -> std::same_as<decision>;
+concept DecisionProcess = requires(F& f, const simulation_data& data) {
+  { f(data) } -> std::same_as<decision>;
 };
 
 inline decision do_nothing(const simulation_data &) {
@@ -20,7 +20,8 @@ inline decision do_nothing(const simulation_data &) {
 }
 
 struct simulation {
-  constexpr simulation() = default;
+  constexpr simulation(const coordinate_list &coordinates)
+      : coordinates(&coordinates) {}
   constexpr simulation(const simulation &) = delete;
   constexpr simulation(simulation &&) = delete;
   constexpr simulation &operator=(const simulation &) = delete;
@@ -47,7 +48,7 @@ struct simulation {
   }
 
   [[nodiscard]] status touchdown(const coordinates &current,
-                                        const coordinates &next) const;
+                                 const coordinates &next) const;
 
   [[nodiscard]] inline int current_frame() const { return current_frame_; }
   [[nodiscard]] inline int frame_count() const { return history_.size(); }
@@ -82,7 +83,7 @@ struct simulation {
     return true;
   }
 
-  coordinate_list coordinates;
+  coordinate_list const *coordinates;
 
   const std::vector<decision> &decisions() const { return decision_history_; }
   const std::vector<tick_data> &history() const { return history_; }
@@ -100,6 +101,30 @@ struct simulation {
     return history_.back().status;
   }
 
+
+  struct simulation_result {
+    std::vector<tick_data> history;
+    std::vector<decision> decisions;
+    simulation::status final_status;
+  };
+
+  struct simulation_result get_simulation_result() && {
+    auto status = history_.back().status;
+    return {
+        .history = std::move(history_),
+        .decisions = std::move(decision_history_),
+        .final_status = status,
+    };
+  }
+
+  struct simulation_result get_simulation_result() const & {
+    return {
+        .history = history_,
+        .decisions = decision_history_,
+        .final_status = history_.back().status,
+    };
+  }
+
 private:
   int current_frame_{0};
   std::vector<tick_data> history_;
@@ -113,8 +138,7 @@ private:
   void changed_() const;
 };
 
-template <DecisionProcess F>
-void simulation::set_data(simulation_data new_data, F &&process) {
+void simulation::set_data(simulation_data new_data, DecisionProcess auto &&process) {
   history_.clear(); // must stay before compute_next_tick
   decision_history_.clear();
   history_.push_back(tick_data{std::move(new_data), status::none});

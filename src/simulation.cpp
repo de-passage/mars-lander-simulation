@@ -8,7 +8,7 @@
 /// Returns true if the simulation keeps running after this turn
 /// False indicates touchdown or crash
 bool simulation::simulate(decision this_turn) {
-  assert(coordinates.size() > 1);
+  assert(coordinates->size() > 1);
   decision_history_.push_back(this_turn);
   auto wanted_rotation =
       std::min(MAX_ROTATION, std::max(-MAX_ROTATION, this_turn.rotate));
@@ -39,13 +39,12 @@ bool simulation::simulate(decision this_turn) {
   return should_continue;
 }
 
-simulation::status
-simulation::touchdown(const ::coordinates &start,
-                      const ::coordinates &next) const {
-  assert(coordinates.size() > 1);
+simulation::status simulation::touchdown(const ::coordinates &start,
+                                         const ::coordinates &next) const {
+  assert(coordinates->size() > 1);
   const auto &current = current_data();
-  for (size_t i = 0; i < coordinates.size() - 1; ++i) {
-    auto current_segment = segment{coordinates[i], coordinates[i + 1]};
+  for (size_t i = 0; i < coordinates->size() - 1; ++i) {
+    auto current_segment = segment{(*coordinates)[i], (*coordinates)[i + 1]};
     if (segments_intersect(segment{start, next}, current_segment)) {
       if (current_segment.start.y == current_segment.end.y) {
         if (current.velocity.x <= MAX_HORIZONTAL_SPEED &&
@@ -87,9 +86,9 @@ simulation::tick_data simulation::compute_next_tick_(int from_frame,
       wanted_power * (std::sin(next_data.data.rotate * DEG_TO_RAD));
   next_data.data.velocity.y =
       current.velocity.y +
-      wanted_power * (std::cos(next_data.data.rotate * DEG_TO_RAD)) - MARS_GRAVITY;
-  next_data.data.position =
-      current.position + current.velocity;
+      wanted_power * (std::cos(next_data.data.rotate * DEG_TO_RAD)) -
+      MARS_GRAVITY;
+  next_data.data.position = current.position + current.velocity;
 
   if (next_data.data.position.y < 0 ||
       next_data.data.position.y > GAME_HEIGHT ||

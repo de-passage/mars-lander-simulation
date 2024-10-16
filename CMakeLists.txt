@@ -18,12 +18,13 @@ endmacro()
 
 set_source_list(
   game_data.cpp
-  load_file.cpp
-  lander.cpp
-  simulation.cpp
-  play.cpp
   genetic.cpp
+  lander.cpp
+  load_file.cpp
+  play.cpp
   random.cpp
+  simulation.cpp
+  world.cpp
 )
 add_library(mars-lander-lib OBJECT ${SOURCE_LIST})
 target_link_libraries(mars-lander-lib PUBLIC sfml-system sfml-graphics)

@@ -24,8 +24,8 @@ file_data load_file(const fs::path &path) {
   }
 
   return {
-      .data = std::move(data),
-      .line = std::move(line),
+      .initial_values = std::move(data),
+      .ground_line = std::move(line),
   };
 }
 

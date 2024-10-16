@@ -1,5 +1,6 @@
 #pragma once
 
+#include "genetic.hpp"
 #include "simulation.hpp"
 #include "simulation_data.hpp"
 #include "view_transform.hpp"
@@ -12,7 +13,7 @@
 #include <vector>
 
 struct game_data {
-  game_data(view_transform transform) : transform{transform} {}
+  game_data(view_transform transform) : transform{transform}, simu{coordinates_} {}
   constexpr game_data(const game_data &) = delete;
   constexpr game_data(game_data &&) = delete;
   constexpr game_data &operator=(const game_data &) = delete;
@@ -28,7 +29,7 @@ struct game_data {
   void initialize(struct file_data &loaded);
   void reset_simulation();
 
-  const coordinate_list &coordinates() const { return simu.coordinates; }
+  const coordinate_list &coordinates() const { return coordinates_; }
 
   const view_transform transform;
 
@@ -44,4 +45,5 @@ struct game_data {
 
 private:
   status status_ = status::stopped;
+  coordinate_list coordinates_;
 };

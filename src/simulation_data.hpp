@@ -7,7 +7,6 @@
 using coordinates = sf::Vector2f;
 using coordinate_list = std::vector<coordinates>;
 
-static_assert(Arithmetic<decltype(coordinates::x)>);
 static_assert(Coordinates<coordinates>);
 
 struct simulation_data {

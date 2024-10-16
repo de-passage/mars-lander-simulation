@@ -12,7 +12,8 @@ class lander : public sf::Drawable {
   const float ellipse_scale_y = .5f;
 
 public:
-  lander(game_data &data, view_transform transform);
+  lander(view_transform transform);
+  lander(const simulation_data&data, view_transform transform);
   virtual void draw(sf::RenderTarget &target,
                     sf::RenderStates states) const override;
 
@@ -25,6 +26,7 @@ public:
   };
 
   void update(const update_data &data, float ratio);
+void update(const coordinates& position, float rotation);
 
   inline sf::Vector2f triangle_position() const {
     return lander_triangle_.getPosition();

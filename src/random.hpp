@@ -8,9 +8,12 @@ struct random_float {
 
   std::random_device rd;
   std::mt19937 gen{rd()};
-  std::uniform_real_distribution<double> dis{0.0, 1.0};
 
-  double operator()() { return dis(gen); }
+  double operator()() { return operator()(0., 1.); }
+  double operator()(double min, double max) {
+    std::uniform_real_distribution<double> dis{min, max};
+    return dis(gen);
+  }
 };
 extern random_float randf;
 

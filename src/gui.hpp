@@ -1,7 +1,5 @@
 #pragma once
 
-#include "config.hpp"
-#include "game_data.hpp"
-#include "lander.hpp"
+#include "world.hpp"
 
-void draw_gui(game_data& data, config& config);
+void draw_gui(world_data& data, config& config);

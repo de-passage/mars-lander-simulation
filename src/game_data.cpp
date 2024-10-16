@@ -5,20 +5,20 @@
 #include <imgui.h>
 
 void game_data::initialize(file_data &loaded) {
-  update_coordinates_(std::move(loaded.line));
+  update_coordinates_(std::move(loaded.ground_line));
   set_initial_parameters_(
-      loaded.data); // Must be called after update_coordinates_
+      loaded.initial_values); // Must be called after update_coordinates_
   status_ = status::stopped;
 }
 
 void game_data::reset_simulation() { simu.set_data(initial, decide); }
 
 void game_data::update_coordinates_(coordinate_list new_coordinates) {
-  simu.coordinates = std::move(new_coordinates);
-  sf::VertexArray vertices(sf::LineStrip, simu.coordinates.size());
+  coordinates_ = std::move(new_coordinates);
+  sf::VertexArray vertices(sf::LineStrip, coordinates_.size());
 
-  for (size_t i = 0; i < simu.coordinates.size(); ++i) {
-    sf::Vector2f position = transform.to_screen(simu.coordinates[i]);
+  for (size_t i = 0; i < coordinates_.size(); ++i) {
+    sf::Vector2f position = transform.to_screen(coordinates_[i]);
     vertices[i].position = position;
     vertices[i].color = sf::Color::Red;
   }

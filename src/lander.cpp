@@ -2,28 +2,19 @@
 #include "constants.hpp"
 #include <iostream>
 
-lander::lander(game_data &data, view_transform transform)
+lander::lander(const simulation_data &current, view_transform transform)
     : transform_{transform} {
-  const simulation_data *current;
-  if (data.simu.frame_count() > 0) {
-    current = &data.simu.current_data();
-  } else {
-    static simulation_data default_value = {
-        .position = {GAME_WIDTH / 2., 0},
-        .velocity = {0, 0},
-        .fuel = 100,
-        .rotate = 0,
-        .power = 0,
-    };
-    current = &default_value;
-  }
-  create_shapes_(current->position, current->rotate);
+  create_shapes_(current.position, current.rotate);
+}
+lander::lander(view_transform transform) : transform_{transform} {
+  create_shapes_({0, 0}, 0);
 }
 
 void lander::draw(sf::RenderTarget &target, sf::RenderStates states) const {
   for (int i = 0; i < thrust_power_; i++) {
     sf::CircleShape thrust(thrust_marker_);
-    float offset = (i - (thrust_power_ - 1) / 2.0f) * (ellipse_radius * 2) + ellipse_radius;
+    float offset = (i - (thrust_power_ - 1) / 2.0f) * (ellipse_radius * 2) +
+                   ellipse_radius;
     thrust.setOrigin(offset, 0);
     target.draw(thrust, states);
   }
@@ -33,16 +24,24 @@ void lander::draw(sf::RenderTarget &target, sf::RenderStates states) const {
 
 void lander::update(const update_data &data, float ratio) {
   thrust_power_ = data.power;
-  current_position_ =
+  auto position =
       calculate_position_(data.current_position, data.next_position, ratio);
+
+  auto rotation =
+      static_cast<float>(data.current_rotation) +
+      static_cast<float>(data.next_rotation - data.current_rotation) * ratio;
+
+  update(position, rotation);
+}
+
+void lander::update(const coordinates &position, float rotation) {
+  current_position_ = position;
   auto screen_position = transform_.to_screen(current_position_);
   lander_triangle_.setPosition(screen_position);
   lander_bottom_.setPosition(screen_position);
   thrust_marker_.setPosition(screen_position);
 
-  current_rotation_ =
-      static_cast<float>(data.current_rotation) +
-      static_cast<float>(data.next_rotation - data.current_rotation) * ratio;
+  current_rotation_ = rotation;
   lander_triangle_.setRotation(current_rotation_);
   lander_bottom_.setRotation(current_rotation_);
   thrust_marker_.setRotation(current_rotation_);

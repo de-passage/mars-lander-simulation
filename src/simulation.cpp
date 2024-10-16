@@ -131,8 +131,9 @@ simulation::crash_reason simulation::why_crash() const {
   }
   int reason = 0;
 
-  if (last.data.position.y < landing.start.y ||
-      last.data.position.y > landing.end.y) {
+
+  if (last.data.position.x < landing.start.x ||
+      last.data.position.x > landing.end.x) {
     reason |= crash_reason::uneven_ground;
   }
 
@@ -147,5 +148,6 @@ simulation::crash_reason simulation::why_crash() const {
   if (last.data.rotate != 0) {
     reason |= crash_reason::rotation;
   }
+
   return static_cast<crash_reason>(reason);
 }

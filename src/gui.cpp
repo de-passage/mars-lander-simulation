@@ -126,7 +126,7 @@ std::string crash_reason_to_string(simulation::crash_reason reason) {
       result += reasons[i];
     }
   }
-  return result + " " + std::to_string(reason);
+  return result;
 }
 
 void draw_history(const simulation &simu) {

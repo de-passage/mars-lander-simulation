@@ -126,7 +126,7 @@ std::string crash_reason_to_string(simulation::crash_reason reason) {
       result += reasons[i];
     }
   }
-  return result;
+  return result + " " + std::to_string(reason);
 }
 
 void draw_history(const simulation &simu) {
@@ -139,6 +139,8 @@ void draw_history(const simulation &simu) {
     if (simu.simulation_status() == simulation::status::crash) {
       ImGui::Text("Crash reason: %s",
                   crash_reason_to_string(simu.why_crash()).data());
+    } else {
+      ImGui::Dummy(ImGui::CalcTextSize("Crash reason: "));
     }
     ImGui::Text("Current frame: %d", simu.current_frame());
     ImGui::Separator();
@@ -159,6 +161,8 @@ void draw_history(const simulation::simulation_result &simu) {
     if (simu.final_status == simulation::status::crash) {
       ImGui::Text("Crash reason: %s",
                   crash_reason_to_string(simu.reason).data());
+    } else {
+      ImGui::Dummy(ImGui::CalcTextSize("Crash reason: "));
     }
     ImGui::Separator();
     ImGui::Columns(2);
@@ -398,9 +402,10 @@ bool draw_algorithm_parameters(ga_data::generation_parameters &params) {
 
 void draw_ga_control(world_data &world) {
   if (ImGui::Begin("Genetic Algorithm")) {
+    bool update_needed = draw_algorithm_parameters(world.ga_params);
     int pop_size = world.ga_params.population_size;
     if (ImGui::InputInt("Population size", &pop_size)) {
-      world.ga_params.population_size = std::max(0, pop_size);
+      update_needed |= world.ga_params.population_size = std::max(0, pop_size);
     }
     ImGui::BeginDisabled(world.generating());
     if (ImGui::Button("Create Generation")) {
@@ -408,7 +413,6 @@ void draw_ga_control(world_data &world) {
     }
 
     ImGui::Separator();
-    bool update_needed = draw_algorithm_parameters(world.ga_params);
     ImGui::EndDisabled();
 
     ImGui::Separator();

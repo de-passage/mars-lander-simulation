@@ -50,7 +50,8 @@ simulation::status simulation::touchdown_(const coord_t &start, coord_t &next,
     if (segments_intersect(segment{start, next}, current_segment)) {
       if (current_segment.start.y == current_segment.end.y) {
         if (std::abs(current.velocity.x) <= MAX_HORIZONTAL_SPEED &&
-            std::abs(current.velocity.y) <= MAX_VERTICAL_SPEED && current.rotate == 0) {
+            std::abs(current.velocity.y) <= MAX_VERTICAL_SPEED &&
+            current.rotate == 0) {
           auto inter = intersection(current_segment, segment{start, next});
           DEBUG_ONLY({
             if (!inter) {
@@ -121,23 +122,25 @@ simulation::tick_data simulation::compute_next_tick_(int from_frame,
   }
   return next_data;
 }
-simulation::crash_reason
-simulation::why_crash() const {
-  auto& last = history_.back();
+
+simulation::crash_reason simulation::why_crash() const {
+  auto &last = history_.back();
   auto landing = landing_area();
-  assert(last.status == status::crash);
+  if (last.status != status::crash) {
+    return static_cast<crash_reason>(0);
+  }
   int reason = 0;
 
-  if (last.data.position.y < landing.start.y || last.data.position.y > landing.end.y) {
+  if (last.data.position.y < landing.start.y ||
+      last.data.position.y > landing.end.y) {
     reason |= crash_reason::uneven_ground;
   }
 
-  if (last.data.velocity.y < -MAX_VERTICAL_SPEED) {
+  if (std::abs(last.data.velocity.y) > MAX_VERTICAL_SPEED) {
     reason |= crash_reason::v_too_fast;
   }
 
-  if (last.data.velocity.x < -MAX_HORIZONTAL_SPEED ||
-      last.data.velocity.x > MAX_HORIZONTAL_SPEED) {
+  if (std::abs(last.data.velocity.x) > MAX_HORIZONTAL_SPEED) {
     reason |= crash_reason::h_too_fast;
   }
 
@@ -146,4 +149,3 @@ simulation::why_crash() const {
   }
   return static_cast<crash_reason>(reason);
 }
-

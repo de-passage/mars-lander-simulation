@@ -16,6 +16,8 @@ struct world_data : sf::Drawable {
   config configuration;
 
   ga_data ga;
+  ga_data::generation_parameters ga_params;
+  unsigned int generation_count{200};
 
   world_data(view_transform to_screen);
 
@@ -27,8 +29,11 @@ struct world_data : sf::Drawable {
   inline simulation_data initial_values() const { return loaded_.initial_values; }
 
   std::atomic<bool> generating{false};
-  unsigned int population_size{100};
-  unsigned int generation_count{200};
+
+  void update_ga_params();
+
+  void load_params();
+  void save_params();
 
 private:
   file_data loaded_;

@@ -1,10 +1,12 @@
 #include "world.hpp"
 
+#include <fstream>
+
 void play_simulation(game_data &game, lander &lander, const config &config);
 
 void world_data::update() {
   if (configuration.current_file && game) {
-      play_simulation(*game, lander, configuration);
+    play_simulation(*game, lander, configuration);
   }
 }
 
@@ -19,9 +21,12 @@ void world_data::draw(sf::RenderTarget &window, sf::RenderStates states) const {
   }
 
   // ga trajectories
-  for (auto &result : ga.current_generation_results()) {
+  auto current_generation = ga.current_generation_results();
+  for (auto &result : current_generation) {
     sf::VertexArray line(sf::LineStrip);
-    sf::Color color = result.final_status == simulation::status::land ? sf::Color::Cyan : sf::Color::Yellow;
+    sf::Color color = result.final_status == simulation::status::land
+                          ? sf::Color::Cyan
+                          : sf::Color::Yellow;
     for (auto &tick : result.history) {
       auto position = transform.to_screen(tick.data.position);
       line.append(sf::Vertex{position, color});
@@ -31,7 +36,7 @@ void world_data::draw(sf::RenderTarget &window, sf::RenderStates states) const {
 
   // ground
   sf::VertexArray line(sf::LineStrip, loaded_.ground_line.size());
-  for (auto& v: loaded_.ground_line) {
+  for (auto &v : loaded_.ground_line) {
     auto position = transform.to_screen(v);
     line.append(sf::Vertex{position, sf::Color::Red});
   }
@@ -87,4 +92,33 @@ void play_simulation(game_data &game, lander &lander, const config &config) {
     frame = 0s;
   }
   last_time = now;
+}
+
+void world_data::update_ga_params() { ga.set_params(ga_params); }
+
+void world_data::save_params() {
+  std::ofstream file("ga_params.ini");
+  file << generation_count << '\n';
+  file << ga_params.population_size << '\n';
+  file << ga_params.mutation_rate << '\n';
+  file << ga_params.elitism_rate << '\n';
+  file << ga_params.fuel_weight << '\n';
+  file << ga_params.distance_weight << '\n';
+  file << ga_params.vertical_speed_weight << '\n';
+  file << ga_params.horizontal_speed_weight << '\n';
+}
+
+void world_data::load_params() {
+  std::ifstream file("ga_params.ini");
+  if (!file.is_open()) {
+    return;
+  }
+  file >> generation_count;
+  file >> ga_params.population_size;
+  file >> ga_params.mutation_rate;
+  file >> ga_params.elitism_rate;
+  file >> ga_params.fuel_weight;
+  file >> ga_params.distance_weight;
+  file >> ga_params.vertical_speed_weight;
+  file >> ga_params.horizontal_speed_weight;
 }

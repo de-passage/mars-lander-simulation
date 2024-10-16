@@ -39,8 +39,8 @@ bool simulation::simulate(decision this_turn) {
   return should_continue;
 }
 
-simulation::status simulation::touchdown(const ::coordinates &start,
-                                         const ::coordinates &next) const {
+simulation::status simulation::touchdown_(const coord_t &start,
+                                         coord_t &next, float& landing_y) const {
   assert(coordinates->size() > 1);
   const auto &current = current_data();
   for (size_t i = 0; i < coordinates->size() - 1; ++i) {
@@ -49,6 +49,7 @@ simulation::status simulation::touchdown(const ::coordinates &start,
       if (current_segment.start.y == current_segment.end.y) {
         if (current.velocity.x <= MAX_HORIZONTAL_SPEED &&
             current.velocity.y <= MAX_VERTICAL_SPEED) {
+          next = intersection(current_segment, segment{start, next}).value();
           return simulation::status::land;
         }
       }
@@ -95,7 +96,7 @@ simulation::tick_data simulation::compute_next_tick_(int from_frame,
       next_data.data.position.x < 0 || next_data.data.position.x > GAME_WIDTH) {
     next_data.status = status::lost;
   } else {
-    next_data.status = touchdown(current.position, next_data.data.position);
+    next_data.status = touchdown_(current.position, next_data.data.position, next_data.data.position.y);
   }
   return next_data;
 }

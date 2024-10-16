@@ -153,9 +153,7 @@ void draw_playback_control(game_data &game, simulation &simu, config &config) {
   bool disable_backward = selected_frame == 0;
   bool disable_forward = selected_frame == simu.frame_count() - 1;
 
-  if (disable_backward) {
-    ImGui::BeginDisabled();
-  }
+  ImGui::BeginDisabled(disable_backward);
   if (ImGui::Button("<")) {
     selected_frame--;
     changed = true;
@@ -163,9 +161,8 @@ void draw_playback_control(game_data &game, simulation &simu, config &config) {
       selected_frame = 0;
     }
   }
-  if (disable_backward) {
-    ImGui::EndDisabled();
-  }
+  ImGui::EndDisabled();
+
   ImGui::SameLine();
   if (ImGui::SliderInt("##History", &selected_frame, 0,
                        simu.frame_count() - 1)) {
@@ -175,9 +172,7 @@ void draw_playback_control(game_data &game, simulation &simu, config &config) {
     changed = true;
   }
   ImGui::SameLine();
-  if (disable_forward) {
-    ImGui::BeginDisabled();
-  }
+  ImGui::BeginDisabled(disable_forward);
   if (ImGui::Button(">")) {
     selected_frame++;
     changed = true;
@@ -185,9 +180,8 @@ void draw_playback_control(game_data &game, simulation &simu, config &config) {
       selected_frame = simu.frame_count() - 1;
     }
   }
-  if (disable_forward) {
-    ImGui::EndDisabled();
-  }
+  ImGui::EndDisabled();
+
   if (changed) {
     simu.set_history_point(selected_frame);
   }
@@ -242,15 +236,23 @@ void draw_frame(game_data &game, config &config) {
   ImGui::End();
 }
 
+bool input_rate(const char *label, float &value) {
+  if (ImGui::InputFloat(label, &value)) {
+    value = std::clamp(value, 0.0f, 1.0f);
+    return true;
+  }
+  return false;
+}
+
 void draw_ga_control(world_data &world) {
   if (ImGui::Begin("Genetic Algorithm")) {
-    int pop_size = world.population_size;
+    int pop_size = world.ga_params.population_size;
     if (ImGui::InputInt("Population size", &pop_size)) {
-      world.population_size = std::max(0, pop_size);
+      world.ga_params.population_size = std::max(0, pop_size);
     }
     ImGui::BeginDisabled(world.generating);
     if (ImGui::Button("Create Generation")) {
-      world.ga.play(world.population_size);
+      world.ga.play(world.ga_params);
     }
     ImGui::EndDisabled();
 
@@ -265,10 +267,49 @@ void draw_ga_control(world_data &world) {
       if (ImGui::InputInt("Generations", &gen_count)) {
         world.generation_count = std::max(0, gen_count);
       }
-      if (ImGui::Button("Play")) {
-        world.generating = true;
-      }
+      bool update_needed = false;
+      update_needed |=
+          input_rate("Mutation rate", world.ga_params.mutation_rate);
+      update_needed |= input_rate("Elitism rate", world.ga_params.elitism_rate);
+      update_needed |=
+          input_rate("Score distance weight", world.ga_params.distance_weight);
+      update_needed |=
+          input_rate("Score fuel weight", world.ga_params.fuel_weight);
+      update_needed |= input_rate("Score vspeed weight",
+                                  world.ga_params.vertical_speed_weight);
+      update_needed |= input_rate("Score hspeed weight",
+                                  world.ga_params.horizontal_speed_weight);
       ImGui::EndDisabled();
+
+      if (update_needed) {
+        world.update_ga_params();
+      }
+
+      if (world.generating) {
+        if (ImGui::Button("Pause")) {
+          world.generating = false;
+        }
+      } else {
+        if (ImGui::Button("Play")) {
+          world.generating = true;
+        }
+        auto results = world.ga.current_generation_results();
+        std::vector<size_t> landed;
+        for (size_t i = 0; i < results.size(); ++i) {
+          if (results[i].final_status == simulation::status::land) {
+            landed.push_back(i);
+          }
+        }
+
+        if (landed.empty()) {
+          ImGui::Text("No landings yet.");
+        } else {
+          ImGui::Text("Landed: ");
+          for (auto i : landed) {
+            ImGui::Text("Individual %zu", i);
+          }
+        }
+      }
     }
   }
   ImGui::End();

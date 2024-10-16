@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <concepts>
+#include <optional>
 #include <utility>
 
 template <class T>
@@ -21,6 +22,7 @@ template <Coordinates T> struct segment {
   T start;
   T end;
 
+  constexpr segment() = default;
   constexpr segment(T start, T end)
       : start{std::move(start)}, end{std::move(end)} {}
 };
@@ -83,7 +85,8 @@ requires std::is_same_v<coordinates_type<T>, coordinates_type<U>>
   auto t = ((p.x - s.start.x) * (s.end.x - s.start.x) +
             (p.y - s.start.y) * (s.end.y - s.start.y)) /
            l2;
-  t = std::max(static_cast<decltype(t)>(0), std::min(static_cast<decltype(t)>(1), t));
+  t = std::max(static_cast<decltype(t)>(0),
+               std::min(static_cast<decltype(t)>(1), t));
   U projection;
   projection.x = s.start.x + t * (s.end.x - s.start.x);
   projection.y = s.start.y + t * (s.end.y - s.start.y);
@@ -94,4 +97,33 @@ template <Coordinates T, typename U>
 requires std::is_same_v<coordinates_type<T>, coordinates_type<U>>
     coordinates_type<T> distance_to_segment(const segment<U> &s, T &&q) {
   return std::sqrt(distance_squared_to_segment(s, std::forward<T>(q)));
+}
+
+template <Coordinates T>
+std::optional<T> intersection(const segment<T> &s1, const segment<T> &s2) {
+  using U = coordinates_type<T>;
+  U x1 = s1.start.x, y1 = s1.start.y;
+  U x2 = s1.end.x, y2 = s1.end.y;
+
+  U x3 = s2.start.x, y3 = s2.start.y;
+  U x4 = s2.end.x, y4 = s2.end.y;
+
+  auto denominator = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+
+  if (denominator == 0) {
+    return std::nullopt;
+  }
+
+  double t =
+      static_cast<double>((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) /
+      static_cast<double>(denominator);
+
+  double u =
+      static_cast<double>((x1 - x2) * (y1 - y2) - (y1 - y3) * (x1 - x3)) /
+      static_cast<double>(denominator);
+
+  if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+    return T{static_cast<U>(x1 + t * (x2 - x1)), static_cast<U>(y1 + t * (y2 - y1))};
+  }
+  return std::nullopt;
 }

@@ -19,12 +19,15 @@
 
 void handle_events(sf::RenderWindow &window, const sf::Event &event,
                    world_data &world) {
-  if (event.type == sf::Event::Closed) {
+  const auto close = [&window, &world] {
     window.close();
+    world.generating = false;
+  };
+  if (event.type == sf::Event::Closed) {
+    close();
   } else if (event.type == sf::Event::KeyPressed) {
     if (event.key.code == sf::Keyboard::C && event.key.control) {
-      // Close the window
-      window.close();
+      close();
     }
   }
 }
@@ -55,6 +58,13 @@ struct generation_thread {
       world.ga.next_generation();
       if (world.ga.current_generation_name() >= world.generation_count) {
         world.generating = false;
+      } else {
+        auto current = world.ga.current_generation_name();
+        for (auto& result: world.ga.current_generation_results()) {
+          if (result.final_status == simulation::status::land) {
+            world.generating = false;
+          }
+        }
       }
     }
     running = false;

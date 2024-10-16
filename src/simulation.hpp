@@ -8,7 +8,7 @@
 #include "simulation_data.hpp"
 
 template <class F>
-concept DecisionProcess = requires(F& f, const simulation_data& data) {
+concept DecisionProcess = requires(F &f, const simulation_data &data) {
   { f(data) } -> std::same_as<decision>;
 };
 
@@ -20,6 +20,7 @@ inline decision do_nothing(const simulation_data &) {
 }
 
 struct simulation {
+  using coord_t = ::coordinates;
   constexpr simulation(const coordinate_list &coordinates)
       : coordinates(&coordinates) {}
   constexpr simulation(const simulation &) = delete;
@@ -46,9 +47,6 @@ struct simulation {
   [[nodiscard]] inline bool is_finished() const {
     return current_frame_ >= history_.size() - 1;
   }
-
-  [[nodiscard]] status touchdown(const coordinates &current,
-                                 const coordinates &next) const;
 
   [[nodiscard]] inline int current_frame() const { return current_frame_; }
   [[nodiscard]] inline int frame_count() const { return history_.size(); }
@@ -101,11 +99,24 @@ struct simulation {
     return history_.back().status;
   }
 
-
   struct simulation_result {
     std::vector<tick_data> history;
     std::vector<decision> decisions;
     simulation::status final_status;
+
+    [[nodiscard]] inline bool success() const {
+      return final_status == simulation::status::land;
+    }
+
+    [[nodiscard]] std::optional<coord_t>
+    landing_site(const segment<coord_t> &landing_site) const {
+      assert(history.size() >= 2);
+      auto &p1 = history[history.size() - 1].data.position;
+      auto &p2 = history[history.size() - 1].data.position;
+      auto i = intersection(landing_site, {p1, p2});
+      assert(i.has_value());
+      return i.value();
+    }
   };
 
   struct simulation_result get_simulation_result() && {
@@ -136,9 +147,12 @@ private:
   std::vector<std::function<void()>> on_data_change_{};
 
   void changed_() const;
+
+  [[nodiscard]] status touchdown_(const coord_t &current, coord_t &next, float& ly) const;
 };
 
-void simulation::set_data(simulation_data new_data, DecisionProcess auto &&process) {
+void simulation::set_data(simulation_data new_data,
+                          DecisionProcess auto &&process) {
   history_.clear(); // must stay before compute_next_tick
   decision_history_.clear();
   history_.push_back(tick_data{std::move(new_data), status::none});

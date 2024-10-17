@@ -6,4 +6,4 @@ struct decision {
   int power;
 };
 
-decision decide(const simulation_data& data);
+decision decide(const simulation_data& data, const std::vector<coordinates>& ground_line);

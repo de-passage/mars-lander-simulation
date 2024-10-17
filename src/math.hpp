@@ -11,11 +11,6 @@ concept Coordinates = requires(T t) {
   requires std::is_same_v<decltype(t.x), decltype(t.y)>;
 };
 
-struct Nope {
-  int x;
-  double y;
-};
-
 template <Coordinates T> using coordinates_type = decltype(std::decay_t<T>::x);
 
 template <Coordinates T> struct segment {
@@ -31,26 +26,26 @@ template <Coordinates T> segment(T, T) -> segment<T>;
 
 template <Coordinates T, Coordinates U>
 requires std::is_same_v<std::decay_t<T>, std::decay_t<U>> coordinates_type<T>
-distance_squared(T &&p1, U &&p2) {
+constexpr distance_squared(T &&p1, U &&p2) {
   return (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y);
 }
 template <Coordinates T>
-coordinates_type<T> distance_squared(const segment<T> &s1) {
+constexpr coordinates_type<T> distance_squared(const segment<T> &s1) {
   return distance_squared(s1.start, s1.end);
 }
 
-template <Coordinates T> bool on_segment(const segment<T> &s, T &&q) {
+template <Coordinates T> constexpr bool on_segment(const segment<std::decay_t<T>> &s, T &&q) {
   return distance_squared(s.start, q) + distance_squared(s.end, q) ==
          distance_squared(s);
 }
 
 template <Coordinates T>
-coordinates_type<T> signed_area_doubled(T &&p1, T &&p2, T &&p3) {
+constexpr coordinates_type<T> signed_area_doubled(T &&p1, T &&p2, T &&p3) {
   return ((p2.x - p1.x) * (p3.y - p1.y)) - ((p2.y - p1.y) * (p3.x - p1.x));
 }
 
 template <Coordinates T>
-bool segments_intersect(const segment<T> &s1, const segment<T> &s2) {
+constexpr bool segments_intersect(const segment<T> &s1, const segment<T> &s2) {
   const auto sign = [](auto a, auto b, auto c) {
     auto s = signed_area_doubled(a, b, c);
     return s == 0 ? 0 : s > 0 ? 1 : -1;
@@ -63,20 +58,20 @@ bool segments_intersect(const segment<T> &s1, const segment<T> &s2) {
   return a1 * a2 < 0 && a3 * a4 < 0;
 }
 
-template <Coordinates T> auto distance(const segment<T> &s) {
+template <Coordinates T> constexpr auto distance(const segment<T> &s) {
   return std::sqrt(distance_squared(s));
 }
 
 template <Coordinates T, Coordinates U>
 requires std::is_same_v<std::decay_t<T>, std::decay_t<U>>
-auto distance(T &&p1, U &&p2) {
+constexpr auto distance(T &&p1, U &&p2) {
   return std::sqrt(distance_squared(std::forward<T>(p1), std::forward<U>(p2)));
 }
 
 template <Coordinates T, typename U>
 requires std::is_same_v<coordinates_type<T>, coordinates_type<U>>
-    coordinates_type<T> distance_squared_to_segment(const segment<U> &s,
-                                                    T &&p) {
+constexpr coordinates_type<T> distance_squared_to_segment(const segment<U> &s,
+                                                          T &&p) {
   auto l2 = distance(s);
 
   if (l2 == 0)
@@ -95,12 +90,13 @@ requires std::is_same_v<coordinates_type<T>, coordinates_type<U>>
 
 template <Coordinates T, typename U>
 requires std::is_same_v<coordinates_type<T>, coordinates_type<U>>
-    coordinates_type<T> distance_to_segment(const segment<U> &s, T &&q) {
+constexpr coordinates_type<T> distance_to_segment(const segment<U> &s, T &&q) {
   return std::sqrt(distance_squared_to_segment(s, std::forward<T>(q)));
 }
 
 template <Coordinates T>
-std::optional<T> intersection(const segment<T> &s1, const segment<T> &s2) {
+constexpr std::optional<T> intersection(const segment<T> &s1,
+                                        const segment<T> &s2) {
   using U = coordinates_type<T>;
   U x1 = s1.start.x, y1 = s1.start.y;
   U x2 = s1.end.x, y2 = s1.end.y;
@@ -129,12 +125,16 @@ std::optional<T> intersection(const segment<T> &s1, const segment<T> &s2) {
   return std::nullopt;
 }
 
-template <Coordinates T> T midpoint(const segment<T> &s) {
+template <Coordinates T> constexpr T midpoint(const segment<T> &s) {
   return T{(s.start.x + s.end.x) / 2, (s.start.y + s.end.y) / 2};
 }
 
 template <Coordinates T, Coordinates U>
-requires std::is_same_v<std::decay_t<T>, std::decay_t<U>> std::decay_t<T>
-midpoint(T &&p1, U &&p2) {
+requires std::is_same_v<std::decay_t<T>, std::decay_t<U>>
+constexpr std::decay_t<T> midpoint(T &&p1, U &&p2) {
   return std::decay_t<T>{(p1.x + p2.x) / 2, (p1.y + p2.y) / 2};
+}
+
+template <class T> constexpr T normalize(T value, T min, T max) {
+  return (value - min) / (max - min);
 }

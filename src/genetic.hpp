@@ -18,10 +18,22 @@ struct individual {
   };
   int current_frame = 0;
 
-  decision operator()(const simulation_data &data) {
+  decision operator()(const simulation_data &data, const std::vector<coordinates>& ground_line) {
+    if (landing_site_.start.x == -1) {
+      find_landing_site_(ground_line);
+    } else if (segments_intersect(landing_site_, {data.position, data.position + data.velocity})) {
+      return {.rotate = 0, .power = data.power};
+    }
+
+    auto current_position = data.position;
+    auto next_position = data.position + data.velocity;
+
+    auto new_rotation = data.rotate + genes[current_frame].rotate * MAX_TURN_RATE * 2 - MAX_TURN_RATE;
+    auto new_power = std::floor(data.power + genes[current_frame].power * 3) - 1;
+
     decision result{
-        .rotate = (int)std::round(genes[current_frame].rotate * MAX_ROTATION * 2 - MAX_ROTATION),
-        .power = (int)std::round(genes[current_frame].power * MAX_POWER),
+        .rotate = std::clamp((int)std::round(new_rotation), -MAX_ROTATION, MAX_ROTATION),
+        .power = std::clamp((int)new_power, 0, MAX_POWER),
     };
     current_frame = (current_frame + 1) % genes.size();
     assert(result.rotate >= -MAX_ROTATION && result.rotate <= MAX_ROTATION);
@@ -29,8 +41,22 @@ struct individual {
     return result;
   }
 
-  std::array<gene, 40> genes;
+  segment<coordinates> landing_site_{{-1, -1}, {-1, -1}};
+  void find_landing_site_(const std::vector<coordinates>& ground_line) {
+    coordinates last{-1, -1};
+    for (auto &coord : ground_line) {
+      if (last.x != -1 && coord.y == last.y) {
+        landing_site_ = {last, coord};
+        return;
+      }
+      last = coord;
+    }
+    throw std::runtime_error("No landing site found");
+  }
+
+  std::array<gene, 70> genes;
 };
+static_assert(DecisionProcess<individual>, "individual must be a DecisionProcess");
 
 individual random_individual();
 
@@ -70,7 +96,7 @@ struct ga_data {
     current_generation_.clear();
   }
 
-  const generation_result &current_generation_results() const {
+  generation_result current_generation_results() const {
     std::lock_guard lock{mutex_};
     return current_generation_results_;
   }
@@ -121,7 +147,7 @@ private:
 
   simulation::simulation_result play(individual &individual);
   segment<coordinates> find_landing_site_() const;
-  fitness_score calculate_fitness_(const simulation::simulation_result &result) const;
+  fitness_score calculate_fitness_score_(const simulation::simulation_result &result) const;
   fitness_score_list calculate_fitness_() const;
   void play_();
 

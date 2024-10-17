@@ -6,7 +6,7 @@
 #include <iostream>
 #include <limits>
 
-individual random_individual() {
+individual random_individual(const simulation_data &initial) {
   individual ind;
   for (auto &gene : ind.genes) {
     gene.rotate = randf();
@@ -15,11 +15,11 @@ individual random_individual() {
   return ind;
 }
 
-generation random_generation(size_t size) {
+generation random_generation(size_t size, const simulation_data &initial) {
   generation gen;
   gen.reserve(size);
   for (size_t i = 0; i < size; ++i) {
-    gen.push_back(random_individual());
+    gen.push_back(random_individual(initial));
   }
   return gen;
 }
@@ -37,55 +37,106 @@ simulation::simulation_result ga_data::play(individual &individual) {
 
 void ga_data::play(generation_parameters params) {
   params_ = params;
-  current_generation_ = random_generation(params.population_size);
+  current_generation_ = random_generation(params.population_size, initial_);
   current_generation_name_ = 0;
   play_();
 }
 
-ga_data::fitness_score
-ga_data::calculate_fitness_(const simulation::simulation_result &result) const {
+ga_data::fitness_score ga_data::calculate_fitness_score_(
+    const simulation::simulation_result &result) const {
   return calculate_fitness(result).score;
 }
 
 ga_data::fitness_values
 ga_data::calculate_fitness(const simulation::simulation_result &result) const {
   const auto &last = result.history.back();
-  bool success = result.final_status == simulation::status::land;
+  const auto square = [](auto x) { return x * x; };
 
   fitness_values values;
 
   fitness_score remaining_fuel = last.data.fuel;
   coordinates position = last.data.position;
+  coordinates position_before_last =
+      result.history[result.history.size() - 2].data.position;
 
-  values.distance = distance(midpoint(landing_site_), position);
-  if (position.x < landing_site_.end.x && position.x > landing_site_.start.x) {
+  const double MAX_ABSOLUTE_DISTANCE =
+      (double)distance(coordinates{0, 0}, coordinates{GAME_WIDTH, GAME_HEIGHT});
+
+  values.distance = distance_to_segment(landing_site_, position);
+  if (segments_intersect(landing_site_, {position_before_last, position})) {
     values.distance = 0;
+  } else if (position.y == landing_site_.start.y &&
+             position.x >= landing_site_.start.x &&
+             position.x <= landing_site_.end.x) {
+    values.distance = 0;
+  }
+  values.dist_score =
+      1. - normalize(values.distance, 0., MAX_ABSOLUTE_DISTANCE);
+
+  values.weighted_dist_score = values.dist_score * params_.distance_weight;
+
+  const fitness_score importance_of_distance = square(values.dist_score);
+
+  values.rotation_score =
+      1. - normalize(static_cast<fitness_score>(std::abs(last.data.rotate)), 0.,
+                     (double)MAX_ROTATION);
+  if (values.distance > std::numeric_limits<double>::epsilon()) {
+    values.weighted_rotation_score = 0;
+  } else {
+    values.weighted_rotation_score = values.rotation_score *
+                                     params_.rotation_weight *
+                                     importance_of_distance;
+  }
+
+  const fitness_score importance_of_rotation = square(values.rotation_score);
+
+  constexpr double MAX_ABSOLUTE_SPEED = 200.;
+
+  if (std::abs(last.data.velocity.y) <= MAX_VERTICAL_SPEED) {
+    values.vertical_speed_score = 1.;
+  } else {
+    const fitness_score vspeed_rel_to_max =
+        std::max(0., std::abs(last.data.velocity.y) - MAX_VERTICAL_SPEED);
+    values.vertical_speed_score =
+        1. - normalize(vspeed_rel_to_max, 0., MAX_ABSOLUTE_SPEED);
+  }
+  if (values.distance > std::numeric_limits<double>::epsilon() ||
+      last.data.rotate != 0) {
+    values.weighted_vertical_speed_score = 0;
+  } else {
+    values.weighted_vertical_speed_score =
+        square(values.vertical_speed_score) * params_.vertical_speed_weight;
+  }
+
+  if (std::abs(last.data.velocity.x) <= MAX_HORIZONTAL_SPEED) {
+    values.horizontal_speed_score = 1.;
+  } else {
+    const fitness_score hspeed_rel_to_max =
+        std::max(0., std::abs(last.data.velocity.x) - MAX_HORIZONTAL_SPEED);
+    values.horizontal_speed_score =
+        1. - normalize(hspeed_rel_to_max, 0., MAX_ABSOLUTE_SPEED);
+  }
+  if (values.distance > std::numeric_limits<double>::epsilon() ||
+      last.data.rotate != 0) {
+    values.weighted_horizontal_speed_score = 0;
+  } else {
+    values.weighted_horizontal_speed_score =
+        square(values.horizontal_speed_score) * params_.horizontal_speed_weight;
   }
 
   values.fuel_score = remaining_fuel;
-  values.weighted_fuel_score = values.fuel_score * params_.fuel_weight;
 
-  values.dist_score = static_cast<fitness_score>(values.distance);
-  values.weighted_dist_score = values.dist_score * params_.distance_weight;
+  if (result.final_status != simulation::status::land) {
+    values.weighted_fuel_score = 0;
+  } else {
+    values.weighted_fuel_score = values.fuel_score * params_.fuel_weight *
+                                 square(square(values.rotation_score));
+  }
 
-  values.vertical_speed_score = static_cast<fitness_score>(
-      std::max(std::abs(last.data.velocity.y) - MAX_VERTICAL_SPEED, 0.));
-  values.weighted_vertical_speed_score = values.vertical_speed_score *
-                                         values.vertical_speed_score *
-                                         params_.vertical_speed_weight;
-
-  values.horizontal_speed_score = static_cast<fitness_score>(
-      std::max(std::abs(last.data.velocity.x) - MAX_HORIZONTAL_SPEED, 0.));
-  values.weighted_horizontal_speed_score = values.horizontal_speed_score *
-                                           values.horizontal_speed_score *
-                                           params_.horizontal_speed_weight;
-
-  values.rotation_score = static_cast<fitness_score>(std::abs(last.data.rotate));
-  values.weighted_rotation_score = values.rotation_score * values.rotation_score * params_.rotation_weight;
-
-  values.score = (values.weighted_fuel_score - values.weighted_dist_score -
-                  values.weighted_vertical_speed_score -
-                  values.weighted_horizontal_speed_score - values.weighted_rotation_score);
+  values.score = values.weighted_fuel_score + values.weighted_dist_score +
+                 values.weighted_vertical_speed_score *
+                 values.weighted_horizontal_speed_score +
+                 values.weighted_rotation_score;
   return values;
 }
 
@@ -94,7 +145,7 @@ ga_data::fitness_score_list ga_data::calculate_fitness_() const {
   std::lock_guard lock{mutex_};
   scores.reserve(current_generation_results_.size());
   for (const auto &result : current_generation_results_) {
-    scores.push_back(calculate_fitness_(result));
+    scores.push_back(calculate_fitness_score_(result));
   }
   return scores;
 }
@@ -130,26 +181,54 @@ std::pair<size_t, size_t> selection(const ga_data::fitness_score_list &scores,
   return {p1, p2};
 }
 
-void crossover(const individual &p1, const individual &p2,
-               generation &new_generation) {
-  new_generation.push_back(p1);
-  new_generation.push_back(p2);
-  auto &child1 = *(new_generation.end() - 2);
-  auto &child2 = new_generation.back();
+void crossover_linear_interpolation(const individual &p1, const individual &p2,
+                                    individual &child1, individual &child2) {
 
   for (int i = 0; i < child1.genes.size(); ++i) {
     auto r = randf();
+
     child1.genes[i].rotate =
         r * p1.genes[i].rotate + (1 - r) * p2.genes[i].rotate;
     child1.genes[i].power = r * p1.genes[i].power + (1 - r) * p2.genes[i].power;
+
     child2.genes[i].rotate =
         (1 - r) * p1.genes[i].rotate + r * p2.genes[i].rotate;
     child2.genes[i].power = (1 - r) * p1.genes[i].power + r * p2.genes[i].power;
   }
 }
 
+void crossover_random_selection(const individual &p1, const individual &p2,
+                                individual &child1, individual &child2) {
+
+  for (int i = 0; i < child1.genes.size(); ++i) {
+    auto r = randf();
+    if (r < .5) {
+      child1.genes[i] = p1.genes[i];
+      child2.genes[i] = p2.genes[i];
+    } else {
+      child1.genes[i] = p2.genes[i];
+      child2.genes[i] = p1.genes[i];
+    }
+  }
+}
+
+void crossover_alternate(const individual &p1, const individual &p2,
+                         individual &child1, individual &child2) {
+
+  for (int i = 0; i < child1.genes.size(); ++i) {
+    if (i % 2 == 0) {
+      child1.genes[i] = p1.genes[i];
+      child2.genes[i] = p2.genes[i];
+    } else {
+      child1.genes[i] = p2.genes[i];
+      child2.genes[i] = p1.genes[i];
+    }
+  }
+}
+
 void mutate(individual &p, const ga_data::generation_parameters &params) {
   for (auto &gene : p.genes) {
+    auto r = randf();
     if (randf() < params.mutation_rate) {
       gene.rotate = randf();
     }
@@ -181,7 +260,6 @@ void ga_data::next_generation() {
       worst_score = scores[i];
     }
   }
-
 
   if (best_score == worst_score) {
     best_score = 1;
@@ -224,16 +302,32 @@ void ga_data::next_generation() {
 
     for (size_t i = 0; i < elites; ++i) {
       new_generation.push_back(this_generation[elite_indices[i].second]);
-      mutate(new_generation.back(), params_);
     }
   }
 
   // Selection
+  int crossover_style = 0;
   while (new_generation.size() < this_generation.size()) {
     auto [p1, p2] = selection(scores, total);
 
     // Crossover
-    crossover(this_generation[p1], this_generation[p2], new_generation);
+    new_generation.push_back(this_generation[p1]);
+    new_generation.push_back(this_generation[p2]);
+    auto &child1 = *(new_generation.end() - 2);
+    auto &child2 = new_generation.back();
+
+    crossover_style = (crossover_style + 1) % 3;
+
+    if (crossover_style == 0) {
+      crossover_linear_interpolation(this_generation[p1], this_generation[p2],
+                                     child1, child2);
+    } else if (crossover_style == 1) {
+      crossover_random_selection(this_generation[p1], this_generation[p2],
+                                 child1, child2);
+    } else {
+      crossover_alternate(this_generation[p1], this_generation[p2], child1,
+                          child2);
+    }
 
     // Mutation
     mutate(new_generation[new_generation.size() - 2], params_);
@@ -245,6 +339,13 @@ void ga_data::next_generation() {
       mutate(new_generation.back(), params_);
     }
   }
+
+  // Mutate the elites at the end to keep their genes during selection
+  // but keep the best individual as is to prevent regression
+  for (size_t i = 1; i < elites; ++i) {
+    mutate(new_generation[i], params_);
+  }
+
   assert(new_generation.size() == this_generation.size());
 
   {

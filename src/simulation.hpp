@@ -8,8 +8,10 @@
 #include "simulation_data.hpp"
 
 template <class F>
-concept DecisionProcess = requires(F &f, const simulation_data &data) {
-  { f(data) } -> std::same_as<decision>;
+concept DecisionProcess =
+    requires(F &f, const simulation_data &data,
+             const std::vector<coordinates> &ground_line) {
+  { f(data, ground_line) } -> std::same_as<decision>;
 };
 
 inline decision do_nothing(const simulation_data &) {
@@ -29,18 +31,20 @@ struct simulation {
   constexpr simulation &operator=(simulation &&) = delete;
   enum class status { none, land, crash, lost };
 
+  enum crash_reason {
+    none = 0,
+    uneven_ground = 1,
+    rotation = 2,
+    v_too_fast = 4,
+    h_too_fast = 8,
+  };
+
   using duration = std::chrono::nanoseconds;
 
   struct tick_data {
     simulation_data data;
     simulation::status status{simulation::status::none};
-  };
-
-  enum crash_reason {
-    uneven_ground = 1,
-    rotation = 2,
-    v_too_fast = 4,
-    h_too_fast = 8,
+    simulation::crash_reason reason;
   };
 
   crash_reason why_crash() const;
@@ -112,6 +116,7 @@ struct simulation {
     std::vector<decision> decisions;
     simulation::status final_status;
     crash_reason reason;
+    crash_reason end_reason;
 
     [[nodiscard]] inline bool success() const {
       return final_status == simulation::status::land;
@@ -131,6 +136,7 @@ struct simulation {
   struct simulation_result get_simulation_result() && {
     auto status = history_.back().status;
     auto reason = why_crash();
+    assert(status != simulation::status::crash ? reason == 0 : true);
     return {
         .history = std::move(history_),
         .decisions = std::move(decision_history_),
@@ -160,8 +166,7 @@ private:
 
   void changed_() const;
 
-  [[nodiscard]] status touchdown_(const coord_t &current, coord_t &next,
-                                  float &ly) const;
+  [[nodiscard]] std::pair<status, crash_reason> touchdown_(const coord_t &current, coord_t &next) const;
 };
 
 void simulation::set_data(simulation_data new_data,
@@ -171,7 +176,9 @@ void simulation::set_data(simulation_data new_data,
   history_.push_back(tick_data{std::move(new_data), status::none});
   current_frame_ = 0;
 
-  while (simulate(process(history_.back().data))) {
+  assert(coordinates && coordinates->size() > 1);
+
+  while (simulate(process(history_.back().data, *coordinates))) {
   }
 
   // Needs to be reset since the simulation loop increases it

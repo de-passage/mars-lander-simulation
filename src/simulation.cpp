@@ -41,33 +41,39 @@ bool simulation::simulate(decision this_turn) {
   return should_continue;
 }
 
-simulation::status simulation::touchdown_(const coord_t &start, coord_t &next,
-                                          float &landing_y) const {
+std::pair<simulation::status, simulation::crash_reason>
+simulation::touchdown_(const coord_t &start, coord_t &next) const {
   assert(coordinates->size() > 1);
   const auto &current = current_data();
   for (size_t i = 0; i < coordinates->size() - 1; ++i) {
     auto current_segment = segment{(*coordinates)[i], (*coordinates)[i + 1]};
     if (segments_intersect(segment{start, next}, current_segment)) {
+      auto reason = crash_reason::none;
       if (current_segment.start.y == current_segment.end.y) {
-        if (std::abs(current.velocity.x) <= MAX_HORIZONTAL_SPEED &&
-            std::abs(current.velocity.y) <= MAX_VERTICAL_SPEED &&
-            current.rotate == 0) {
-          auto inter = intersection(current_segment, segment{start, next});
-          DEBUG_ONLY({
-            if (!inter) {
-              std::cerr << "No intersection found between " << current_segment
-                        << " and " << segment{start, next} << std::endl;
-            }
-            assert(inter.has_value());
-          });
-          next = *inter;
-          return simulation::status::land;
+        if (std::abs(current.velocity.x) > MAX_HORIZONTAL_SPEED) {
+          return {simulation::status::crash, crash_reason::h_too_fast};
         }
+        if (std::abs(current.velocity.y) > MAX_VERTICAL_SPEED) {
+          return {simulation::status::crash, crash_reason::v_too_fast};
+        }
+        if (current.rotate != 0) {
+          return {simulation::status::crash, crash_reason::rotation};
+        }
+
+        auto inter = intersection(current_segment, segment{start, next});
+        DEBUG_ONLY({
+          if (!inter) {
+            std::cerr << "No intersection found between " << current_segment
+                      << " and " << segment{start, next} << std::endl;
+          }
+          assert(inter.has_value());
+        });
+        next = *inter;
+        return {simulation::status::land, crash_reason::none};
       }
-      return simulation::status::crash;
     }
   }
-  return simulation::status::none;
+  return {simulation::status::none, crash_reason::none};
 }
 
 segment<coordinates> simulation::landing_area() const {
@@ -117,8 +123,10 @@ simulation::tick_data simulation::compute_next_tick_(int from_frame,
       next_data.data.position.x < 0 || next_data.data.position.x > GAME_WIDTH) {
     next_data.status = status::lost;
   } else {
-    next_data.status = touchdown_(current.position, next_data.data.position,
-                                  next_data.data.position.y);
+    auto [status, reason] =
+        touchdown_(current.position, next_data.data.position);
+    next_data.status = status;
+    next_data.reason = reason;
   }
   return next_data;
 }
@@ -130,7 +138,6 @@ simulation::crash_reason simulation::why_crash() const {
     return static_cast<crash_reason>(0);
   }
   int reason = 0;
-
 
   if (last.data.position.x < landing.start.x ||
       last.data.position.x > landing.end.x) {

@@ -28,4 +28,4 @@ individual random_individual();
 
 using generation = std::vector<individual>;
 
-generation random_generation(size_t size);
+generation random_generation(size_t size, const simulation_data &initial);

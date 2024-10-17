@@ -7,27 +7,6 @@
 #include <iostream>
 #include <limits>
 
-individual random_individual(const simulation_data &initial) {
-  individual ind;
-  for (auto &gene : ind.genes) {
-    gene.rotate = randf();
-    gene.power = randf();
-  }
-  return ind;
-}
-
-generation random_generation(size_t size, const simulation_data &initial) {
-  generation gen;
-  gen.reserve(size);
-  for (size_t i = 0; i < size; ++i) {
-    gen.push_back(random_individual(initial));
-  }
-  return gen;
-}
-
-static_assert(DecisionProcess<individual>,
-              "individual must be a DecisionProcess");
-
 simulation::simulation_result ga_data::play(individual &individual) {
   simulation sim{coordinates_};
   landing_site_ = find_landing_site_();

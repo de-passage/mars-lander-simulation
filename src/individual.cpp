@@ -1,4 +1,5 @@
 #include "individual.hpp"
+#include "random.hpp"
 #include "simulation.hpp"
 #include "constants.hpp"
 
@@ -43,4 +44,45 @@ void individual::find_landing_site_(
   }
   throw std::runtime_error("No landing site found");
 }
+
+
+individual random_individual(const simulation_data &initial) {
+  individual ind;
+  for (auto &gene : ind.genes) {
+    gene.rotate = randf();
+    gene.power = randf();
+  }
+  return ind;
+}
+
+individual fixed_values(const simulation_data &initial, double rotate,
+                        double power) {
+  individual ind;
+  for (auto &gene : ind.genes) {
+    gene.rotate = rotate;
+    gene.power = power;
+  }
+  return ind;
+}
+
+generation random_generation(size_t size, const simulation_data &initial) {
+  generation gen;
+  gen.reserve(size);
+
+  gen.push_back(fixed_values(initial, 0.5, 0.5));
+  gen.push_back(fixed_values(initial, 0., 0.));
+  gen.push_back(fixed_values(initial, 1., 1.));
+  gen.push_back(fixed_values(initial, 1., 0.));
+  gen.push_back(fixed_values(initial, 0., 1.));
+  gen.push_back(fixed_values(initial, 1., .5));
+  gen.push_back(fixed_values(initial, .5, 1.));
+
+  for (size_t i = gen.size(); i < size; ++i) {
+    gen.push_back(random_individual(initial));
+  }
+  return gen;
+}
+
+static_assert(DecisionProcess<individual>,
+              "individual must be a DecisionProcess");
 

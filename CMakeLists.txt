@@ -38,6 +38,36 @@ target_link_libraries(mars-visualizer PRIVATE  sfml-window ImGui-SFML::ImGui-SFM
 
 set_source_list(codingame_main.cpp genetic.cpp play.cpp random.cpp simulation.cpp individual.cpp)
 add_executable(codingame ${SOURCE_LIST})
+target_include_directories(codingame PRIVATE src)
+
+set(generated_file ${CMAKE_CURRENT_BINARY_DIR}/generated.cpp)
+get_target_property(app_SOURCES codingame SOURCES)
+get_target_property(app_INCLUDES codingame INCLUDE_DIRECTORIES)
+list(TRANSFORM app_INCLUDES PREPEND -I)
+
+set(include_files
+  simulation.hpp
+  simulation_data.hpp
+  genetic.hpp
+  individual.hpp
+  random.hpp
+  )
+list(TRANSFORM include_files PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/src/)
+add_custom_command(
+  OUTPUT "${generated_file}"
+  DEPENDS "${app_SOURCES}" "${include_files}"
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+  COMMAND
+    "${CMAKE_CURRENT_LIST_DIR}/scripts/combine.bash"
+    ${app_SOURCES}
+    ${app_INCLUDES}
+    -o "${generated_file}"
+  )
+
+add_custom_target(
+  generate
+  DEPENDS "${generated_file}"
+)
 
 include(CTest)
 find_package(Catch2 REQUIRED)

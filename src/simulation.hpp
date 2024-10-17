@@ -23,7 +23,7 @@ inline decision do_nothing(const simulation_data &) {
 
 struct simulation {
   using coord_t = ::coordinates;
-  constexpr simulation(const coordinate_list &coordinates)
+  simulation(const coordinate_list &coordinates)
       : coordinates(&coordinates) {}
   constexpr simulation(const simulation &) = delete;
   constexpr simulation(simulation &&) = delete;

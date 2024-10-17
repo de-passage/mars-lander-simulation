@@ -29,7 +29,7 @@ struct ga_data {
     float distance_weight = 1.;
     float rotation_weight = 1.;
     float elite_multiplier = 1.5;
-    float stdev_threshold = 10.;
+    float stdev_threshold = 1;
   };
 
   ga_data(coordinate_list coordinates = {}, simulation_data initial = {})
@@ -63,6 +63,10 @@ struct ga_data {
   }
 
   size_t current_generation_name() const { return current_generation_name_; }
+
+  const std::vector<individual> &current_generation() const {
+    return current_generation_;
+  }
 
   struct fitness_values {
     fitness_score score;

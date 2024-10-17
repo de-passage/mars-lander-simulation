@@ -241,7 +241,7 @@ void draw_lander_data(const lander &lander) {
 
 void draw_frame(game_data &game, config &config) {
   // Example ImGui window
-  if (ImGui::Begin("Playback")) {
+  if (ImGui::Begin("Data")) {
     ImGui::Checkbox("Show trajectory", &config.show_trajectory);
 
     if (config.current_file) {
@@ -269,9 +269,10 @@ void draw_frame(game_data &game, config &config) {
   ImGui::End();
 }
 
-bool input_rate(const char *label, float &value) {
+bool input_rate(const char *label, float &value, float min = 0.0f,
+                float max = 1.0f) {
   if (ImGui::InputFloat(label, &value)) {
-    value = std::clamp(value, 0.0f, 1.0f);
+    value = std::clamp(value, min, max);
     return true;
   }
   return false;
@@ -282,31 +283,17 @@ int draw_generation_results(const world_data &world) {
   auto results = world.current_generation_results();
   std::vector<size_t> landed;
   std::vector<std::pair<size_t, ga_data::fitness_values>> fitness_values;
+  std::vector<ga_data::fitness_score> scores;
 
   for (size_t i = 0; i < results.size(); ++i) {
     if (results[i].final_status == simulation::status::land) {
       landed.push_back(i);
     }
-    fitness_values.emplace_back(
-        i, ga_data::compute_fitness_values(results[i], world.ga_params,
-                                           world.landing_site()));
-
-    /*
-    if (results[i].reason != results[i].history.back().reason) {
-      ImGui::Text("Inconsistency between crash reasons in ");
-      ImGui::SameLine();
-      if (ImGui::SmallButton(std::to_string(i).c_str())) {
-        selected = i;
-      }
-      ImGui::Text(
-          "why_crash (%d): %s", results[i].reason,
-          crash_reason_to_string(results[i].reason).data());
-
-      ImGui::Text(
-          "touchdown (%d): %s", results[i].history.back().reason,
-          crash_reason_to_string(results[i].history.back().reason).data());
-    }
-    */
+    auto values = ga_data::compute_fitness_values(results[i], world.ga_params,
+                                                  world.landing_site());
+    values.score *= 100;
+    fitness_values.emplace_back(i, values);
+    scores.push_back(values.score);
   }
 
   auto mx = *std::max_element(fitness_values.begin(), fitness_values.end(),
@@ -332,6 +319,12 @@ int draw_generation_results(const world_data &world) {
     }
   }
 
+  auto m = mean(scores);
+  auto v = variance(scores, m);
+  ImGui::Text("Generation score average: %.2f", m);
+  ImGui::Text("Generation score variance: %.2f", v);
+  ImGui::Text("Generation score standard deviation: %.2f", sqrt(v));
+
   ImGui::Text("Best score: %.2f", mx.second.score);
   ImGui::SameLine();
   ImGui::Text("Best individual: %zu", mx.first);
@@ -343,7 +336,9 @@ int draw_generation_results(const world_data &world) {
 }
 
 void draw_generation_controls(world_data &world) {
+  ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));
   ImGui::Text("Generation %zu", world.current_generation_name());
+  ImGui::PopStyleColor();
   ImGui::BeginDisabled(world.generating());
   if (ImGui::Button("Next Generation")) {
     world.next_generation();
@@ -402,6 +397,8 @@ bool draw_algorithm_parameters(ga_data::generation_parameters &params) {
   bool update_needed = false;
   update_needed |= input_rate("Mutation rate", params.mutation_rate);
   update_needed |= input_rate("Elitism rate", params.elitism_rate);
+  update_needed |= input_rate("Elite selection score multiplier",
+                              params.elite_multiplier, 0., 100.);
   update_needed |= input_rate("Score distance weight", params.distance_weight);
   update_needed |= input_rate("Score fuel weight", params.fuel_weight);
   update_needed |=
@@ -409,6 +406,8 @@ bool draw_algorithm_parameters(ga_data::generation_parameters &params) {
   update_needed |=
       input_rate("Score hspeed weight", params.horizontal_speed_weight);
   update_needed |= input_rate("Score rotation weight", params.rotation_weight);
+  update_needed |= input_rate("Standard deviation threshold",
+                              params.stdev_threshold, 0., 100.);
   return update_needed;
 }
 
@@ -510,5 +509,4 @@ void draw_generic_info(world_data &world) {
 void draw_gui(world_data &world, config &config) {
   draw_generic_info(world);
   draw_ga_control(world);
-  // draw_history(world.game.simu);
 }

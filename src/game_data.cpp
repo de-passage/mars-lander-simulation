@@ -4,7 +4,7 @@
 #include "play.hpp"
 #include <imgui.h>
 
-void game_data::reset_simulation() { current_frame_ = 0; }
+void game_data::reset_simulation() { set_history_point(0); }
 
 void game_data::update_coordinates_(coordinate_list new_coordinates) {
   coordinates_ = std::move(new_coordinates);

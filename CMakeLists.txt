@@ -25,6 +25,7 @@ set_source_list(
   random.cpp
   simulation.cpp
   world.cpp
+  individual.cpp
 )
 add_library(mars-lander-lib OBJECT ${SOURCE_LIST})
 target_link_libraries(mars-lander-lib PUBLIC sfml-system sfml-graphics)

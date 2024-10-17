@@ -126,6 +126,8 @@ void world_data::save_params() {
   file << ga_params.vertical_speed_weight << '\n';
   file << ga_params.horizontal_speed_weight << '\n';
   file << ga_params.rotation_weight << '\n';
+  file << ga_params.elite_multiplier << '\n';
+  file << ga_params.stdev_threshold << '\n';
 }
 
 void world_data::load_params() {
@@ -147,4 +149,6 @@ void world_data::load_params() {
   file >> ga_params.vertical_speed_weight;
   file >> ga_params.horizontal_speed_weight;
   file >> ga_params.rotation_weight;
+  file >> ga_params.elite_multiplier;
+  file >> ga_params.stdev_threshold;
 }

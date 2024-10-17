@@ -138,3 +138,52 @@ constexpr std::decay_t<T> midpoint(T &&p1, U &&p2) {
 template <class T> constexpr T normalize(T value, T min, T max) {
   return (value - min) / (max - min);
 }
+
+template<class C, class T>
+constexpr T mean(const C &c) noexcept {
+  T sum = static_cast<T>(0);
+  for (const auto &v : c) {
+    sum += static_cast<T>(v);
+  }
+  return sum / static_cast<T>(c.size());
+}
+
+template<class C>
+constexpr auto mean(const C &c) noexcept {
+  return mean<C, typename C::value_type>(c);
+}
+
+template<class C, class T>
+constexpr T variance(const C &c) noexcept {
+  T m = mean(c);
+  T sum = static_cast<T>(0);
+  for (const auto &v : c) {
+    sum += (v - m) * (v - m);
+  }
+  return sum / static_cast<T>(c.size());
+}
+
+template<class C, class T>
+constexpr T variance(const C &c, T mean) noexcept {
+  T sum = static_cast<T>(0);
+  for (const auto &v : c) {
+    sum += (v - mean) * (v - mean);
+  }
+  return sum / static_cast<T>(c.size());
+}
+
+template<class C>
+constexpr auto variance(const C &c) noexcept {
+  return variance<C, typename C::value_type>(c);
+}
+
+template<class C>
+constexpr double standard_deviation(const C &c) noexcept {
+  return std::sqrt(variance<C>(c));
+}
+
+template<class C, class T>
+constexpr double standard_deviation(const C &c, T mean) noexcept {
+  return std::sqrt(variance<C, T>(c, mean));
+}
+

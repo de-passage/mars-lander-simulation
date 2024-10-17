@@ -54,7 +54,7 @@ struct individual {
     throw std::runtime_error("No landing site found");
   }
 
-  std::array<gene, 70> genes;
+  std::array<gene, 200> genes;
 };
 static_assert(DecisionProcess<individual>, "individual must be a DecisionProcess");
 

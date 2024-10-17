@@ -71,10 +71,10 @@ void draw_coordinates(const std::vector<coordinates> &coordinates) {
 }
 
 void draw_frames(const std::vector<simulation::tick_data> &simu) {
-  ImGui::Text("Frames");
+  ImGui::Text("Frames (%zu)", simu.size());
 
   constexpr std::array headers = {"Position", "Velocity", "Fuel",
-                                  "Rotate",   "Power",    "Status"};
+                                  "Rotate",   "Power"};
   if (ImGui::BeginTable("Frames", headers.size())) {
 
     for (const auto &header : headers) {
@@ -98,8 +98,6 @@ void draw_frames(const std::vector<simulation::tick_data> &simu) {
       ImGui::Text("%d", frame.data.rotate);
       ImGui::TableNextColumn();
       ImGui::Text("%d", frame.data.power);
-      ImGui::TableNextColumn();
-      ImGui::Text("%s", to_string(frame.status).data());
     }
   }
   ImGui::EndTable();
@@ -160,7 +158,7 @@ void draw_history(const simulation::simulation_result &simu) {
     ImGui::Text("Simulation result: %s", to_string(simu.final_status).data());
     if (simu.final_status == simulation::status::crash) {
       ImGui::Text("Crash reason: %s",
-                  crash_reason_to_string(simu.reason).data());
+                  crash_reason_to_string(simu.history.back().reason).data());
     } else {
       ImGui::Dummy(ImGui::CalcTextSize("Crash reason: "));
     }
@@ -290,6 +288,7 @@ bool input_rate(const char *label, float &value) {
 }
 
 int draw_generation_results(const ga_data &ga) {
+  int selected = -1;
   auto results = ga.current_generation_results();
   std::vector<size_t> landed;
   std::vector<std::pair<size_t, ga_data::fitness_values>> fitness_values;
@@ -299,6 +298,23 @@ int draw_generation_results(const ga_data &ga) {
       landed.push_back(i);
     }
     fitness_values.emplace_back(i, ga.calculate_fitness(results[i]));
+
+    /*
+    if (results[i].reason != results[i].history.back().reason) {
+      ImGui::Text("Inconsistency between crash reasons in ");
+      ImGui::SameLine();
+      if (ImGui::SmallButton(std::to_string(i).c_str())) {
+        selected = i;
+      }
+      ImGui::Text(
+          "why_crash (%d): %s", results[i].reason,
+          crash_reason_to_string(results[i].reason).data());
+
+      ImGui::Text(
+          "touchdown (%d): %s", results[i].history.back().reason,
+          crash_reason_to_string(results[i].history.back().reason).data());
+    }
+    */
   }
 
   auto mx = *std::max_element(fitness_values.begin(), fitness_values.end(),
@@ -319,7 +335,7 @@ int draw_generation_results(const ga_data &ga) {
       }
       ImGui::SameLine();
       if (ImGui::SmallButton(std::to_string(i).c_str())) {
-        return i;
+        selected = i;
       }
     }
   }
@@ -329,9 +345,9 @@ int draw_generation_results(const ga_data &ga) {
   ImGui::Text("Best individual: %zu", mx.first);
   ImGui::SameLine();
   if (ImGui::Button("Select")) {
-    return mx.first;
+    selected = mx.first;
   }
-  return -1;
+  return selected;
 }
 
 void draw_generation_controls(world_data &world) {

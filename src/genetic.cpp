@@ -73,7 +73,7 @@ ga_data::calculate_fitness(const simulation::simulation_result &result) const {
   values.dist_score =
       1. - normalize(values.distance, 0., MAX_ABSOLUTE_DISTANCE);
 
-  values.weighted_dist_score = values.dist_score * params_.distance_weight;
+  values.weighted_dist_score = square(values.dist_score) * params_.distance_weight;
 
   const fitness_score importance_of_distance = square(values.dist_score);
 

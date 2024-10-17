@@ -35,6 +35,8 @@ bool simulation::simulate(decision this_turn) {
 
   auto next_tick =
       compute_next_tick_(current_frame_, wanted_rotation, wanted_power);
+  assert((next_tick.status == status::crash && next_tick.reason != 0) ||
+         next_tick.status != status::crash);
   bool should_continue = next_tick.status == status::none;
   history_.push_back(std::move(next_tick));
   current_frame_++;
@@ -42,34 +44,47 @@ bool simulation::simulate(decision this_turn) {
 }
 
 std::pair<simulation::status, simulation::crash_reason>
-simulation::touchdown_(const coord_t &start, coord_t &next) const {
+simulation::touchdown_(const coord_t &start, tick_data &next) const {
   assert(coordinates->size() > 1);
-  const auto &current = current_data();
+  auto &next_data = next.data;
   for (size_t i = 0; i < coordinates->size() - 1; ++i) {
     auto current_segment = segment{(*coordinates)[i], (*coordinates)[i + 1]};
-    if (segments_intersect(segment{start, next}, current_segment)) {
-      auto reason = crash_reason::none;
+    auto inter =
+        intersection(current_segment, segment{start, next_data.position});
+    if (inter) {
+      crash_reason reason = crash_reason::none;
+
+      if (std::abs(next_data.velocity.x) > MAX_HORIZONTAL_SPEED) {
+        reason = static_cast<simulation::crash_reason>(
+            reason | crash_reason::h_too_fast);
+      }
+      if (std::abs(next_data.velocity.y) > MAX_VERTICAL_SPEED) {
+        reason = static_cast<crash_reason>(reason | crash_reason::v_too_fast);
+      }
+      if (next_data.rotate != 0) {
+        reason = static_cast<simulation::crash_reason>(reason |
+                                                       crash_reason::rotation);
+      }
+
       if (current_segment.start.y == current_segment.end.y) {
-        if (std::abs(current.velocity.x) > MAX_HORIZONTAL_SPEED) {
-          return {simulation::status::crash, crash_reason::h_too_fast};
-        }
-        if (std::abs(current.velocity.y) > MAX_VERTICAL_SPEED) {
-          return {simulation::status::crash, crash_reason::v_too_fast};
-        }
-        if (current.rotate != 0) {
-          return {simulation::status::crash, crash_reason::rotation};
+        if (reason != crash_reason::none) {
+          return {simulation::status::crash, reason};
         }
 
-        auto inter = intersection(current_segment, segment{start, next});
         DEBUG_ONLY({
           if (!inter) {
             std::cerr << "No intersection found between " << current_segment
-                      << " and " << segment{start, next} << std::endl;
+                      << " and " << segment{start, next_data.position}
+                      << std::endl;
           }
           assert(inter.has_value());
         });
-        next = *inter;
+        next_data.position = *inter;
         return {simulation::status::land, crash_reason::none};
+      } else {
+        reason =
+            static_cast<crash_reason>(reason | crash_reason::uneven_ground);
+        return {simulation::status::crash, reason};
       }
     }
   }
@@ -122,9 +137,9 @@ simulation::tick_data simulation::compute_next_tick_(int from_frame,
       next_data.data.position.y > GAME_HEIGHT ||
       next_data.data.position.x < 0 || next_data.data.position.x > GAME_WIDTH) {
     next_data.status = status::lost;
+    next_data.reason = crash_reason::none;
   } else {
-    auto [status, reason] =
-        touchdown_(current.position, next_data.data.position);
+    auto [status, reason] = touchdown_(current.position, next_data);
     next_data.status = status;
     next_data.reason = reason;
   }
@@ -140,7 +155,8 @@ simulation::crash_reason simulation::why_crash() const {
   int reason = 0;
 
   if (last.data.position.x < landing.start.x ||
-      last.data.position.x > landing.end.x) {
+      last.data.position.x > landing.end.x ||
+      (last.data.position.y != landing.start.y)) {
     reason |= crash_reason::uneven_ground;
   }
 

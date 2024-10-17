@@ -116,7 +116,6 @@ struct simulation {
     std::vector<decision> decisions;
     simulation::status final_status;
     crash_reason reason;
-    crash_reason end_reason;
 
     [[nodiscard]] inline bool success() const {
       return final_status == simulation::status::land;
@@ -166,7 +165,8 @@ private:
 
   void changed_() const;
 
-  [[nodiscard]] std::pair<status, crash_reason> touchdown_(const coord_t &current, coord_t &next) const;
+  [[nodiscard]] std::pair<status, crash_reason>
+  touchdown_(const coord_t &current, tick_data &next) const;
 };
 
 void simulation::set_data(simulation_data new_data,

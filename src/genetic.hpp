@@ -18,21 +18,28 @@ struct individual {
   };
   int current_frame = 0;
 
-  decision operator()(const simulation_data &data, const std::vector<coordinates>& ground_line) {
+  decision operator()(const simulation_data &data,
+                      const std::vector<coordinates> &ground_line) {
     if (landing_site_.start.x == -1) {
       find_landing_site_(ground_line);
-    } else if (segments_intersect(landing_site_, {data.position, data.position + data.velocity})) {
+    } else if (segments_intersect(
+                   landing_site_,
+                   {data.position, data.position + data.velocity})) {
       return {.rotate = 0, .power = data.power};
     }
 
     auto current_position = data.position;
     auto next_position = data.position + data.velocity;
 
-    auto new_rotation = data.rotate + genes[current_frame].rotate * MAX_TURN_RATE * 2 - MAX_TURN_RATE;
-    auto new_power = std::floor(data.power + genes[current_frame].power * 3) - 1;
+    auto new_rotation = data.rotate +
+                        genes[current_frame].rotate * MAX_TURN_RATE * 2 -
+                        MAX_TURN_RATE;
+    auto new_power =
+        std::floor(data.power + genes[current_frame].power * 3) - 1;
 
     decision result{
-        .rotate = std::clamp((int)std::round(new_rotation), -MAX_ROTATION, MAX_ROTATION),
+        .rotate = std::clamp((int)std::round(new_rotation), -MAX_ROTATION,
+                             MAX_ROTATION),
         .power = std::clamp((int)new_power, 0, MAX_POWER),
     };
     current_frame = (current_frame + 1) % genes.size();
@@ -42,7 +49,7 @@ struct individual {
   }
 
   segment<coordinates> landing_site_{{-1, -1}, {-1, -1}};
-  void find_landing_site_(const std::vector<coordinates>& ground_line) {
+  void find_landing_site_(const std::vector<coordinates> &ground_line) {
     coordinates last{-1, -1};
     for (auto &coord : ground_line) {
       if (last.x != -1 && coord.y == last.y) {
@@ -56,7 +63,8 @@ struct individual {
 
   std::array<gene, 200> genes;
 };
-static_assert(DecisionProcess<individual>, "individual must be a DecisionProcess");
+static_assert(DecisionProcess<individual>,
+              "individual must be a DecisionProcess");
 
 individual random_individual();
 
@@ -112,7 +120,7 @@ struct ga_data {
     params_ = params;
   }
 
-  size_t current_generation_name() { return current_generation_name_; }
+  size_t current_generation_name() const { return current_generation_name_; }
 
   struct fitness_values {
     fitness_score score;
@@ -131,7 +139,12 @@ struct ga_data {
 
     double distance;
   };
-  fitness_values calculate_fitness(const simulation::simulation_result &result) const;
+  fitness_values
+  calculate_fitness(const simulation::simulation_result &result) const;
+  static fitness_values
+  compute_fitness_values(const simulation::simulation_result &result,
+                         const generation_parameters &params,
+                         const segment<coordinates> &landing_site);
 
 private:
   mutable std::mutex mutex_;
@@ -147,7 +160,8 @@ private:
 
   simulation::simulation_result play(individual &individual);
   segment<coordinates> find_landing_site_() const;
-  fitness_score calculate_fitness_score_(const simulation::simulation_result &result) const;
+  fitness_score
+  calculate_fitness_score_(const simulation::simulation_result &result) const;
   fitness_score_list calculate_fitness_() const;
   void play_();
 

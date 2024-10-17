@@ -4,6 +4,7 @@
 #include "view_transform.hpp"
 #include <SFML/Graphics.hpp>
 #include <SFML/System/Vector2.hpp>
+#include "attachable.hpp"
 
 class lander : public sf::Drawable {
 
@@ -13,7 +14,7 @@ class lander : public sf::Drawable {
 
 public:
   lander(view_transform transform);
-  lander(const simulation_data&data, view_transform transform);
+  lander(const simulation_data &data, view_transform transform);
   virtual void draw(sf::RenderTarget &target,
                     sf::RenderStates states) const override;
 
@@ -26,7 +27,7 @@ public:
   };
 
   void update(const update_data &data, float ratio);
-void update(const coordinates& position, float rotation);
+  void update(const coordinates &position, float rotation);
 
   inline sf::Vector2f triangle_position() const {
     return lander_triangle_.getPosition();
@@ -37,7 +38,20 @@ void update(const coordinates& position, float rotation);
 
   inline sf::Vector2f current_position() const { return current_position_; }
   inline float current_rotation() const { return current_rotation_; }
-  void attach(simulation &simu);
+
+  void attach(Attachable auto &simu) {
+    simu.on_data_change([this, &simu]() {
+      this->update(
+          {
+              .current_position = simu.current_data().position,
+              .next_position = simu.next_data().position,
+              .current_rotation = simu.current_data().rotate,
+              .next_rotation = simu.next_data().rotate,
+              .power = simu.current_data().power,
+          },
+          0.f);
+    });
+  }
 
 private:
   coordinates current_position_;

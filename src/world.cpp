@@ -13,19 +13,16 @@ void world_data::update() {
 void world_data::draw(sf::RenderTarget &window, sf::RenderStates states) const {
   if (configuration.current_file) {
     window.draw(lander, states);
-    if (game) {
-      if (configuration.show_trajectory) {
-        window.draw(traj, states);
-      }
-    }
   }
 
   // ga trajectories
   auto current_generation = ga.current_generation_results();
   if (selected_individual.has_value()) {
-    int index = selected_individual.value();
-    if (index < current_generation.size()) {
-      draw_line_(current_generation[index], window, states);
+    if (configuration.show_trajectory) {
+      int index = selected_individual.value();
+      if (index < current_generation.size()) {
+        draw_line_(current_generation[index], window, states);
+      }
     }
   } else {
     for (auto &result : current_generation) {
@@ -58,18 +55,20 @@ void world_data::draw_line_(const simulation::simulation_result &result,
 }
 
 void world_data::set_file_data(file_data loaded) {
-  pause();
+  pause_generation();
   this->loaded_ = loaded;
-  if (game) {
-    game->initialize(loaded);
-  } else {
-    lander.update(loaded.initial_values.position, loaded.initial_values.rotate);
+  for (int i = 0; i < loaded_.ground_line.size() - 1; ++i) {
+    if (loaded_.ground_line[i].y == loaded_.ground_line[i + 1].y) {
+      landing_site_ = {loaded_.ground_line[i], loaded_.ground_line[i + 1]};
+      break;
+    }
   }
+  reset_individual_selection_();
   ga.set_data(loaded.ground_line, loaded.initial_values);
 }
 
 world_data::world_data(view_transform to_screen)
-    : transform{to_screen}, game{}, lander{to_screen}, traj{to_screen}, ga{} {}
+    : transform{to_screen}, game{}, lander{to_screen}, ga{} {}
 
 // Utility to calculate where the lander should be in between frames
 void play_simulation(game_data &game, lander &lander, const config &config) {
@@ -95,8 +94,8 @@ void play_simulation(game_data &game, lander &lander, const config &config) {
     auto elapsed_ratio = duration_cast<duration<double>>(frame) /
                          duration_cast<duration<double>>(playback_speed);
 
-    const auto &current_data = game.simu.current_data();
-    const auto &next_data = game.simu.next_data();
+    const auto &current_data = game.current_data();
+    const auto &next_data = game.next_data();
     lander.update(lander::update_data{.current_position = current_data.position,
                                       .next_position = next_data.position,
                                       .current_rotation = current_data.rotate,

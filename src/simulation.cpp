@@ -101,19 +101,6 @@ segment<coordinates> simulation::landing_area() const {
   throw std::runtime_error("No landing area found");
 }
 
-void simulation::set_history_point(int index) {
-  assert(index >= 0);
-  assert(index < history_.size());
-  current_frame_ = index;
-  changed_();
-}
-
-void simulation::changed_() const {
-  for (auto &callback : on_data_change_) {
-    callback();
-  }
-}
-
 simulation::tick_data simulation::compute_next_tick_(int from_frame,
                                                      int wanted_rotation,
                                                      int wanted_power) const {

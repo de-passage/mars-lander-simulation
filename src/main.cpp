@@ -21,7 +21,7 @@ void handle_events(sf::RenderWindow &window, const sf::Event &event,
                    world_data &world) {
   const auto close = [&window, &world] {
     window.close();
-    world.pause();
+    world.pause_generation();
   };
   if (event.type == sf::Event::Closed) {
     close();
@@ -56,16 +56,16 @@ struct generation_thread {
 
   void background_generation(world_data &world) {
     while (world.generating()) {
-      world.ga.next_generation();
-      if (world.ga.current_generation_name() >= world.generation_count &&
+      world.next_generation();
+      if (world.current_generation_name() >= world.generation_count &&
           !world.keep_running_after_max_generation) {
-        world.pause();
+        world.pause_generation();
       } else {
-        auto current = world.ga.current_generation_name();
-        for (auto &result : world.ga.current_generation_results()) {
+        auto current = world.current_generation_name();
+        for (auto &result : world.current_generation_results()) {
           if (result.final_status == simulation::status::land &&
               !world.keep_running_after_solution) {
-            world.pause();
+            world.pause_generation();
           }
         }
       }

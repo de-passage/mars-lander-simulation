@@ -73,8 +73,8 @@ void draw_coordinates(const std::vector<coordinates> &coordinates) {
 void draw_frames(const std::vector<simulation::tick_data> &simu) {
   ImGui::Text("Frames (%zu)", simu.size());
 
-  constexpr std::array headers = {"Position", "Velocity", "Fuel",
-                                  "Rotate",   "Power"};
+  constexpr std::array headers = {"Position", "Velocity", "Fuel", "Rotate",
+                                  "Power"};
   if (ImGui::BeginTable("Frames", headers.size())) {
 
     for (const auto &header : headers) {
@@ -127,31 +127,8 @@ std::string crash_reason_to_string(simulation::crash_reason reason) {
   return result;
 }
 
-void draw_history(const simulation &simu) {
-  if (ImGui::Begin("Command History", nullptr,
-                   ImGuiWindowFlags_HorizontalScrollbar)) {
-
-    ImGui::Text("Frame count: %d", simu.frame_count());
-    ImGui::Text("Simulation result: %s",
-                to_string(simu.simulation_status()).data());
-    if (simu.simulation_status() == simulation::status::crash) {
-      ImGui::Text("Crash reason: %s",
-                  crash_reason_to_string(simu.why_crash()).data());
-    } else {
-      ImGui::Dummy(ImGui::CalcTextSize("Crash reason: "));
-    }
-    ImGui::Text("Current frame: %d", simu.current_frame());
-    ImGui::Separator();
-    ImGui::Columns(2);
-    draw_frames(simu.history());
-
-    ImGui::NextColumn();
-    draw_decision_history(simu.decisions());
-  }
-  ImGui::End();
-}
-
-void draw_history(const simulation::simulation_result &simu) {
+void draw_history(const simulation::simulation_result &simu,
+                  world_data &world) {
   if (ImGui::Begin("Command History", nullptr,
                    ImGuiWindowFlags_HorizontalScrollbar)) {
 
@@ -162,6 +139,19 @@ void draw_history(const simulation::simulation_result &simu) {
     } else {
       ImGui::Dummy(ImGui::CalcTextSize("Crash reason: "));
     }
+    if (world.playback_in_progress()) {
+      if (ImGui::Button("Stop")) {
+        world.stop_playback();
+      }
+    } else {
+      if (ImGui::Button("Play")) {
+        world.start_playback();
+      }
+      if (ImGui::Button("Reset")) {
+        world.reset_playback();
+      }
+    }
+
     ImGui::Separator();
     ImGui::Columns(2);
     draw_frames(simu.history);
@@ -173,7 +163,7 @@ void draw_history(const simulation::simulation_result &simu) {
   ImGui::End();
 }
 
-void draw_playback_control(game_data &game, simulation &simu, config &config) {
+void draw_playback_control(game_data &game, config &config) {
   if (game.is_running()) {
     if (ImGui::Button("Stop")) {
       game.stop();
@@ -191,10 +181,10 @@ void draw_playback_control(game_data &game, simulation &simu, config &config) {
   ImGui::Separator();
 
   bool changed = false;
-  int selected_frame = simu.current_frame();
+  int selected_frame = game.current_frame();
   int last_selected = selected_frame;
   bool disable_backward = selected_frame == 0;
-  bool disable_forward = selected_frame == simu.frame_count() - 1;
+  bool disable_forward = selected_frame == game.frame_count() - 1;
 
   ImGui::BeginDisabled(disable_backward);
   if (ImGui::Button("<")) {
@@ -208,7 +198,7 @@ void draw_playback_control(game_data &game, simulation &simu, config &config) {
 
   ImGui::SameLine();
   if (ImGui::SliderInt("##History", &selected_frame, 0,
-                       simu.frame_count() - 1)) {
+                       game.frame_count() - 1)) {
     game.stop();
   }
   if (ImGui::IsItemActive()) {
@@ -219,14 +209,14 @@ void draw_playback_control(game_data &game, simulation &simu, config &config) {
   if (ImGui::Button(">")) {
     selected_frame++;
     changed = true;
-    if (selected_frame >= simu.frame_count()) {
-      selected_frame = simu.frame_count() - 1;
+    if (selected_frame >= game.frame_count()) {
+      selected_frame = game.frame_count() - 1;
     }
   }
   ImGui::EndDisabled();
 
   if (changed) {
-    simu.set_history_point(selected_frame);
+    game.set_history_point(selected_frame);
   }
 }
 
@@ -251,27 +241,27 @@ void draw_lander_data(const lander &lander) {
 
 void draw_frame(game_data &game, config &config) {
   // Example ImGui window
-  if (ImGui::Begin("Data")) {
+  if (ImGui::Begin("Playback")) {
     ImGui::Checkbox("Show trajectory", &config.show_trajectory);
 
     if (config.current_file) {
       ImGui::Text("File: %s", config.current_file->filename().string().c_str());
       ImGui::Spacing();
 
-      draw_playback_control(game, game.simu, config);
+      draw_playback_control(game, config);
 
       ImGui::Separator();
 
       ImGui::Columns(2);
 
-      draw_frame_data("Current frame", game.simu.current_data());
+      draw_frame_data("Current frame", game.current_data());
 
       ImGui::NextColumn();
 
-      draw_frame_data("Initial frame", game.initial);
+      draw_frame_data("Initial frame", game.initial_data());
       ImGui::Separator();
 
-      draw_coordinates(game.coordinates());
+      draw_coordinates(game.ground_line());
     } else {
       ImGui::Text("No file selected.");
     }
@@ -287,9 +277,9 @@ bool input_rate(const char *label, float &value) {
   return false;
 }
 
-int draw_generation_results(const ga_data &ga) {
+int draw_generation_results(const world_data &world) {
   int selected = -1;
-  auto results = ga.current_generation_results();
+  auto results = world.current_generation_results();
   std::vector<size_t> landed;
   std::vector<std::pair<size_t, ga_data::fitness_values>> fitness_values;
 
@@ -297,7 +287,9 @@ int draw_generation_results(const ga_data &ga) {
     if (results[i].final_status == simulation::status::land) {
       landed.push_back(i);
     }
-    fitness_values.emplace_back(i, ga.calculate_fitness(results[i]));
+    fitness_values.emplace_back(
+        i, ga_data::compute_fitness_values(results[i], world.ga_params,
+                                           world.landing_site()));
 
     /*
     if (results[i].reason != results[i].history.back().reason) {
@@ -351,10 +343,10 @@ int draw_generation_results(const ga_data &ga) {
 }
 
 void draw_generation_controls(world_data &world) {
-  ImGui::Text("Generation %zu", world.ga.current_generation_name());
+  ImGui::Text("Generation %zu", world.current_generation_name());
   ImGui::BeginDisabled(world.generating());
   if (ImGui::Button("Next Generation")) {
-    world.ga.next_generation();
+    world.next_generation();
   }
 
   ImGui::EndDisabled();
@@ -368,11 +360,11 @@ void draw_generation_controls(world_data &world) {
 
   if (world.generating()) {
     if (ImGui::Button("Pause")) {
-      world.pause();
+      world.pause_generation();
     }
   } else {
     if (ImGui::Button("Play")) {
-      world.start();
+      world.start_generation();
     }
   }
 }
@@ -429,7 +421,7 @@ void draw_ga_control(world_data &world) {
     }
     ImGui::BeginDisabled(world.generating());
     if (ImGui::Button("Create Generation")) {
-      world.ga.play(world.ga_params);
+      world.new_generation();
     }
 
     ImGui::Separator();
@@ -446,12 +438,11 @@ void draw_ga_control(world_data &world) {
     world.keep_running_after_max_generation = kramg;
 
     if (world.has_values()) {
-      int individual_max_index =
-          world.ga.current_generation_results().size() - 1;
+      int individual_max_index = world.current_generation_results().size() - 1;
       draw_generation_controls(world);
 
       if (world.generated()) {
-        int show = draw_generation_results(world.ga);
+        int show = draw_generation_results(world);
         if (show >= 0) {
           world.selected_individual = show;
         }
@@ -480,13 +471,15 @@ void draw_ga_control(world_data &world) {
         if (i > individual_max_index) {
           world.selected_individual.reset();
         } else {
-          auto results =
-              world.ga.current_generation_results()[*world.selected_individual];
+          auto results = world.setup_currently_selected_for_playback();
+          assert(world.game.has_value());
+          draw_frame(*world.game, world.configuration);
 
           draw_frame_data("Selected individual", results.history.back().data);
           ImGui::Separator();
-          draw_fitness_values(world.ga.calculate_fitness(results));
-          draw_history(results);
+          draw_fitness_values(ga_data::compute_fitness_values(
+              results, world.ga_params, world.landing_site()));
+          draw_history(results, world);
         }
       }
 
@@ -515,7 +508,6 @@ void draw_generic_info(world_data &world) {
 }
 
 void draw_gui(world_data &world, config &config) {
-  // draw_frame(world.game, config);
   draw_generic_info(world);
   draw_ga_control(world);
   // draw_history(world.game.simu);

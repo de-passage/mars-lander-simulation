@@ -93,17 +93,3 @@ void lander::create_shapes_(const coordinates &start, float rotation) {
   thrust_marker_.setPosition(position);
   thrust_marker_.setRotation(rotation);
 }
-
-void lander::attach(simulation &simu) {
-  simu.on_data_change([this, &simu]() {
-    this->update(
-        {
-            .current_position = simu.current_data().position,
-            .next_position = simu.next_data().position,
-            .current_rotation = simu.current_data().rotate,
-            .next_rotation = simu.next_data().rotate,
-            .power = simu.current_data().power,
-        },
-        0.f);
-  });
-}

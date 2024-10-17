@@ -56,10 +56,6 @@ struct simulation {
 
   bool simulate(decision this_turn);
 
-  [[nodiscard]] inline bool is_finished() const {
-    return current_frame_ >= history_.size() - 1;
-  }
-
   [[nodiscard]] inline int current_frame() const { return current_frame_; }
   [[nodiscard]] inline int frame_count() const { return history_.size(); }
   [[nodiscard]] inline const tick_data &current_tick() const {
@@ -84,27 +80,10 @@ struct simulation {
     return next_tick().status;
   }
 
-  inline bool advance_frame() {
-    current_frame_++;
-    if (current_frame_ >= history_.size()) {
-      current_frame_ = history_.size() - 1;
-      return false;
-    }
-    return true;
-  }
-
   coordinate_list const *coordinates;
 
   const std::vector<decision> &decisions() const { return decision_history_; }
   const std::vector<tick_data> &history() const { return history_; }
-
-  void on_data_change(std::function<void()> callback) {
-    assert(callback != nullptr);
-    on_data_change_.push_back(std::move(callback));
-    if (history_.size() > 0) {
-      on_data_change_.back()();
-    }
-  }
 
   [[nodiscard]] inline simulation::status simulation_status() const {
     assert(frame_count() > 0);
@@ -161,10 +140,6 @@ private:
                                              int wanted_rotation,
                                              int wanted_power) const;
 
-  std::vector<std::function<void()>> on_data_change_{};
-
-  void changed_() const;
-
   [[nodiscard]] std::pair<status, crash_reason>
   touchdown_(const coord_t &current, tick_data &next) const;
 };
@@ -183,7 +158,6 @@ void simulation::set_data(simulation_data new_data,
 
   // Needs to be reset since the simulation loop increases it
   current_frame_ = 0;
-  changed_();
 
   assert(history_.size() >= 1);
 }

@@ -19,8 +19,8 @@ public:
                     sf::RenderStates states) const override;
 
   struct update_data {
-    const sf::Vector2f &current_position;
-    const sf::Vector2f &next_position;
+    const coordinates &current_position;
+    const coordinates &next_position;
     int current_rotation;
     int next_rotation;
     int power{0};
@@ -36,13 +36,13 @@ public:
     return lander_triangle_.getRotation();
   }
 
-  inline sf::Vector2f current_position() const { return current_position_; }
+  inline coordinates current_position() const { return current_position_; }
   inline float current_rotation() const { return current_rotation_; }
 
   void attach(Attachable auto &simu) {
     simu.on_data_change([this, &simu]() {
       this->update(
-          {
+          update_data{
               .current_position = simu.current_data().position,
               .next_position = simu.next_data().position,
               .current_rotation = simu.current_data().rotate,
@@ -62,7 +62,7 @@ private:
   sf::CircleShape thrust_marker_;
   int thrust_power_ = 0;
 
-  sf::Vector2f calculate_position_(const coordinates &start,
+  coordinates calculate_position_(const coordinates &start,
                                    const coordinates &end, float ratio);
   void create_shapes_(const coordinates &start, float rotation);
   view_transform transform_;

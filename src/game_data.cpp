@@ -1,5 +1,6 @@
 #include "game_data.hpp"
 #include "constants.hpp"
+#include "coordinates_utils.hpp"
 #include "load_file.hpp"
 #include "play.hpp"
 #include <imgui.h>
@@ -11,7 +12,7 @@ void game_data::update_coordinates_(coordinate_list new_coordinates) {
   sf::VertexArray vertices(sf::LineStrip, coordinates_.size());
 
   for (size_t i = 0; i < coordinates_.size(); ++i) {
-    sf::Vector2f position = transform.to_screen(coordinates_[i]);
+    sf::Vector2f position = to_sfml(transform.to_screen(coordinates_[i]));
     vertices[i].position = position;
     vertices[i].color = sf::Color::Red;
   }

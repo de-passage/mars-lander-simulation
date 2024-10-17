@@ -1,5 +1,6 @@
 #include "lander.hpp"
 #include "constants.hpp"
+#include "coordinates_utils.hpp"
 #include <iostream>
 
 lander::lander(const simulation_data &current, view_transform transform)
@@ -36,7 +37,7 @@ void lander::update(const update_data &data, float ratio) {
 
 void lander::update(const coordinates &position, float rotation) {
   current_position_ = position;
-  auto screen_position = transform_.to_screen(current_position_);
+  auto screen_position = to_sfml(transform_.to_screen(current_position_));
   lander_triangle_.setPosition(screen_position);
   lander_bottom_.setPosition(screen_position);
   thrust_marker_.setPosition(screen_position);
@@ -47,9 +48,9 @@ void lander::update(const coordinates &position, float rotation) {
   thrust_marker_.setRotation(current_rotation_);
 }
 
-sf::Vector2f lander::calculate_position_(const coordinates &start,
+coordinates lander::calculate_position_(const coordinates &start,
                                          const coordinates &end, float ratio) {
-  sf::Vector2f logical{
+  coordinates logical{
       start.x + (end.x - start.x) * ratio,
       start.y + (end.y - start.y) * ratio,
   };
@@ -58,7 +59,8 @@ sf::Vector2f lander::calculate_position_(const coordinates &start,
 }
 
 void lander::create_shapes_(const coordinates &start, float rotation) {
-  auto position = calculate_position_(start, start, 0.f);
+  auto position = to_sfml(calculate_position_(start, start, 0.f));
+
   sf::ConvexShape triangle(3); // A triangle has 3 points
   // Define the points for the triangle (relative to the position)
   triangle.setPoint(0, sf::Vector2f(-lander_size / 2.f, 0.f)); // Left point

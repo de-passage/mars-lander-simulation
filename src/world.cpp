@@ -1,4 +1,5 @@
 #include "world.hpp"
+#include "coordinates_utils.hpp"
 
 #include <fstream>
 
@@ -34,7 +35,7 @@ void world_data::draw(sf::RenderTarget &window, sf::RenderStates states) const {
   sf::VertexArray line(sf::LineStrip, loaded_.ground_line.size());
   for (auto &v : loaded_.ground_line) {
     auto position = transform.to_screen(v);
-    line.append(sf::Vertex{position, sf::Color::Red});
+    line.append(sf::Vertex{to_sfml(position), sf::Color::Red});
   }
 
   window.draw(line, states);
@@ -49,7 +50,7 @@ void world_data::draw_line_(const simulation::simulation_result &result,
                         : sf::Color::Yellow;
   for (auto &tick : result.history) {
     auto position = transform.to_screen(tick.data.position);
-    line.append(sf::Vertex{position, color});
+    line.append(sf::Vertex{to_sfml(position), color});
   }
   window.draw(line, states);
 }

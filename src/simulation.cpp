@@ -1,7 +1,6 @@
 #include "simulation.hpp"
 
 #include "constants.hpp"
-#include "coordinates_utils.hpp"
 #include "math.hpp"
 #include "utility.hpp"
 #include <cassert>
@@ -71,14 +70,6 @@ simulation::touchdown_(const coord_t &start, tick_data &next) const {
           return {simulation::status::crash, reason};
         }
 
-        DEBUG_ONLY({
-          if (!inter) {
-            std::cerr << "No intersection found between " << current_segment
-                      << " and " << segment{start, next_data.position}
-                      << std::endl;
-          }
-          assert(inter.has_value());
-        });
         next_data.position = *inter;
         return {simulation::status::land, crash_reason::none};
       } else {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "math.hpp"
+#include "SFML/System/Vector2.hpp"
 #include <iostream>
 
 template<Coordinates T>
@@ -13,4 +14,9 @@ template<Coordinates T>
 std::ostream& operator<<(std::ostream& os, const segment<T>& seg) {
   os << seg.start << " -> " << seg.end;
   return os;
+}
+
+template<Coordinates T>
+sf::Vector2<coordinates_type<T>> to_sfml(const T& coord) {
+  return {coord.x, coord.y};
 }

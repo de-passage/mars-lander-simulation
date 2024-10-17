@@ -36,6 +36,9 @@ set_source_list(main.cpp gui.cpp)
 add_executable(mars-visualizer ${SOURCE_LIST})
 target_link_libraries(mars-visualizer PRIVATE  sfml-window ImGui-SFML::ImGui-SFML mars-lander-lib)
 
+set_source_list(codingame_main.cpp genetic.cpp play.cpp random.cpp simulation.cpp individual.cpp)
+add_executable(codingame ${SOURCE_LIST})
+
 include(CTest)
 find_package(Catch2 REQUIRED)
 add_subdirectory(tests)

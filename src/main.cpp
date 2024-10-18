@@ -6,6 +6,7 @@
 #include "load_file.hpp"
 #include "trajectory.hpp"
 #include "world.hpp"
+#include "tracy_shim.hpp"
 
 #include <SFML/Graphics.hpp>
 #include <imgui-SFML.h>
@@ -55,12 +56,17 @@ struct generation_thread {
   }
 
   void background_generation(world_data &world) {
+    SetThreadName("Generation Thread");
+    ZoneScopedN("Genetic Algorithm Thread");
     while (world.generating()) {
+      ZoneScopedN("Generation Loop");
       world.next_generation();
       if (world.current_generation_name() >= world.generation_count &&
           !world.keep_running_after_max_generation) {
+        TracyMessageStr("Pausing generation");
         world.pause_generation();
       } else {
+        ZoneScopedN("Result Check");
         auto current = world.current_generation_name();
         for (auto &result : world.current_generation_results()) {
           if (result.final_status == simulation::status::land &&
@@ -85,6 +91,7 @@ int main(int argc, const char *argv[])
     try
 #endif
 {
+  ZoneScopedN("Main");
 
   sf::RenderWindow window(sf::VideoMode::getDesktopMode(),
                           "SFML + ImGui Example");
@@ -120,8 +127,10 @@ int main(int argc, const char *argv[])
 
   sf::Clock deltaClock;
   while (window.isOpen()) {
+    FrameMarkNamed("Main Loop");
     sf::Event event;
     while (window.pollEvent(event)) {
+
       ImGui::SFML::ProcessEvent(event);
 
       handle_events(window, event, world);

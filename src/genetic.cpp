@@ -36,6 +36,7 @@ ga_data::fitness_values
 ga_data::compute_fitness_values(const simulation::simulation_result &result,
                                 const generation_parameters &params,
                                 const segment<coordinates> &landing_site) {
+  ZoneScoped;
   const auto &last = result.history.back();
   const auto square = [](auto x) { return x * x; };
   const fitness_score epsilon = std::numeric_limits<fitness_score>::epsilon();
@@ -138,6 +139,7 @@ ga_data::fitness_score_list ga_data::calculate_fitness_() const {
 
 std::pair<size_t, size_t> selection(const ga_data::fitness_score_list &scores,
                                     ga_data::fitness_score total) {
+  ZoneScoped;
 
   // Roulette wheel selection, look into implementing the alias method. cf.
   // wikipedia and
@@ -169,6 +171,7 @@ std::pair<size_t, size_t> selection(const ga_data::fitness_score_list &scores,
 
 void crossover_linear_interpolation(const individual &p1, const individual &p2,
                                     individual &child1, individual &child2) {
+  ZoneScoped;
 
   for (int i = 0; i < child1.genes.size(); ++i) {
     auto r = randf();
@@ -185,6 +188,7 @@ void crossover_linear_interpolation(const individual &p1, const individual &p2,
 
 void crossover_random_selection(const individual &p1, const individual &p2,
                                 individual &child1, individual &child2) {
+  ZoneScoped;
 
   for (int i = 0; i < child1.genes.size(); ++i) {
     auto r = randf();
@@ -200,6 +204,7 @@ void crossover_random_selection(const individual &p1, const individual &p2,
 
 void crossover_alternate(const individual &p1, const individual &p2,
                          individual &child1, individual &child2) {
+  ZoneScoped;
 
   for (int i = 0; i < child1.genes.size(); ++i) {
     if (i % 2 == 0) {
@@ -214,6 +219,7 @@ void crossover_alternate(const individual &p1, const individual &p2,
 
 void mutate(individual &p, const ga_data::generation_parameters &params,
             double stdev) {
+  ZoneScoped;
   auto mutation_rate = params.mutation_rate;
   auto threshold = params.stdev_threshold;
   if (stdev < threshold) {
@@ -232,6 +238,7 @@ void mutate(individual &p, const ga_data::generation_parameters &params,
 }
 
 void ga_data::next_generation() {
+  ZoneScoped;
   fitness_score_list scores = calculate_fitness_();
   generation this_generation = [&] {
     std::lock_guard lock{mutex_};
@@ -311,6 +318,7 @@ void ga_data::next_generation() {
   int crossover_style = 0;
   double sd = standard_deviation(scores, total / scores.size());
   while (new_generation.size() < this_generation.size()) {
+    ZoneScopedN("Selection, crossover and mutation");
     auto [p1, p2] = selection(scores, total);
 
     // Crossover

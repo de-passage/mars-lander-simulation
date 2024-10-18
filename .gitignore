@@ -7,3 +7,6 @@ install-*/
 *.ini
 core
 vcpkg_*
+callgrind.out.*
+perf.data*
+flamegraph.svg

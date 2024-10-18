@@ -5,6 +5,7 @@
 #include "simulation.hpp"
 #include "simulation_data.hpp"
 #include "individual.hpp"
+#include "tracy_shim.hpp"
 
 #include <array>
 #include <atomic>

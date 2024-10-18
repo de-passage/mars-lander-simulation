@@ -4,7 +4,8 @@
     "sfml",
     "imgui",
     "imgui-sfml",
-    "catch2"
+    "catch2",
+    "tracy"
   ],
   "vcpkg-configuration": {
     "overlay-ports": [

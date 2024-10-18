@@ -8,7 +8,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(SFML 2.6 COMPONENTS graphics window system CONFIG REQUIRED)
 find_package(ImGui-SFML CONFIG REQUIRED)
-
+find_package(Tracy CONFIG)
+include (CMakeDependentOption)
 
 set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 macro(set_source_list)
@@ -16,29 +17,63 @@ macro(set_source_list)
   list(TRANSFORM SOURCE_LIST PREPEND ${SOURCE_DIR}/)
 endmacro()
 
+################
+# SHARED FILES #
+################
 set_source_list(
-  game_data.cpp
   genetic.cpp
-  lander.cpp
-  load_file.cpp
   play.cpp
   random.cpp
   simulation.cpp
-  world.cpp
   individual.cpp
+  )
+add_library(genetic-algo OBJECT ${SOURCE_LIST})
+target_include_directories(genetic-algo PUBLIC ${SOURCE_DIR})
+
+set_source_list(
+  game_data.cpp
+  lander.cpp
+  load_file.cpp
+  world.cpp
 )
 add_library(mars-lander-lib OBJECT ${SOURCE_LIST})
-target_link_libraries(mars-lander-lib PUBLIC sfml-system sfml-graphics)
+target_link_libraries(mars-lander-lib PUBLIC sfml-system sfml-graphics genetic-algo genetic-algo)
 target_include_directories(mars-lander-lib PUBLIC ${SOURCE_DIR})
 
-
+#################
+# VISUALIZATION #
+#################
+set(visualizaton-libraries sfml-window ImGui-SFML::ImGui-SFML mars-lander-lib genetic-algo)
 set_source_list(main.cpp gui.cpp)
 add_executable(mars-visualizer ${SOURCE_LIST})
-target_link_libraries(mars-visualizer PRIVATE  sfml-window ImGui-SFML::ImGui-SFML mars-lander-lib)
+target_link_libraries(mars-visualizer PRIVATE ${visualizaton-libraries})
 
-set_source_list(codingame_main.cpp genetic.cpp play.cpp random.cpp simulation.cpp individual.cpp)
+option (TRACY_ENABLE "Enable Tracy Profiler" OFF)
+cmake_dependent_option(TRACY_ON_DEMAND "Enable Tracy on demand" OFF TRACY_ENABLE OFF)
+
+# Profiling
+if (TRACY_ENABLE)
+  if (NOT Tracy_FOUND)
+    message(FATAL_ERROR "Tracy not found")
+  endif()
+add_executable(profiled-visualizer ${SOURCE_LIST})
+target_link_libraries(profiled-visualizer PRIVATE ${visualizaton-libraries} Tracy::TracyClient)
+set_target_properties(profiled-visualizer PROPERTIES BUILD_TYPE Release)
+target_compile_definitions(profiled-visualizer PRIVATE TRACY_ENABLE)
+include (CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-march=native" COMPILER_SUPPORTS_MARCH_NATIVE)
+if (COMPILER_SUPPORTS_MARCH_NATIVE)
+  target_compile_options(profiled-visualizer PRIVATE -march=native)
+endif()
+endif(TRACY_ENABLE)
+
+#############
+# CODINGAME #
+#############
+set_source_list(codingame_main.cpp)
 add_executable(codingame ${SOURCE_LIST})
 target_include_directories(codingame PRIVATE src)
+target_link_libraries(codingame PRIVATE genetic-algo)
 
 set(generated_file ${CMAKE_CURRENT_BINARY_DIR}/generated.cpp)
 get_target_property(app_SOURCES codingame SOURCES)
@@ -51,6 +86,7 @@ set(include_files
   genetic.hpp
   individual.hpp
   random.hpp
+  tracy_shim.hpp
   )
 list(TRANSFORM include_files PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/src/)
 add_custom_command(

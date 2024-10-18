@@ -67,6 +67,10 @@ if (COMPILER_SUPPORTS_MARCH_NATIVE)
 endif()
 endif(TRACY_ENABLE)
 
+set_source_list(single_pass.cpp load_file.cpp)
+add_executable(single-pass ${SOURCE_LIST})
+target_link_libraries(single-pass PRIVATE genetic-algo)
+
 #############
 # CODINGAME #
 #############
@@ -77,6 +81,8 @@ target_link_libraries(codingame PRIVATE genetic-algo)
 
 set(generated_file ${CMAKE_CURRENT_BINARY_DIR}/generated.cpp)
 get_target_property(app_SOURCES codingame SOURCES)
+get_target_property(lib_SOURCES genetic-algo SOURCES)
+list(APPEND app_SOURCES ${lib_SOURCES})
 get_target_property(app_INCLUDES codingame INCLUDE_DIRECTORIES)
 list(TRANSFORM app_INCLUDES PREPEND -I)
 

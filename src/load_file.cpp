@@ -1,5 +1,7 @@
 #include "load_file.hpp"
+
 #include <fstream>
+#include <algorithm>
 
 namespace fs = std::filesystem;
 

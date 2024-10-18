@@ -1,6 +1,7 @@
 #pragma once
 #include "tracy_shim.hpp"
 
+#include <cstdlib>
 #include <random>
 
 struct random_float {
@@ -12,8 +13,9 @@ struct random_float {
 
   double operator()() {
     ZoneScopedN("Random [0,1)");
-    return operator()(0., 1.);
+    return (double)rand() / (double)(RAND_MAX);
   }
+
   double operator()(double min, double max) {
     ZoneScopedN("Random [min,max)");
     std::uniform_real_distribution<double> dis{min, max};

@@ -77,15 +77,20 @@ int main() {
         if (val.success()) {
           return i;
         }
+        auto score = ga_data::compute_fitness_values(val, params, landing).score;
+        if (score > best_score) {
+          best_score = score;
+        }
       }
       auto now = clock::now();
       auto dur = now - start;
       total += dur;
-      if (ga.current_generation_name() % 5 == 0) {
+      if (ga.current_generation_name() % 2 == 0) {
         std::cerr << "Generation " << ga.current_generation_name()
           << " took: " << duration_cast<microseconds>(dur).count()
           << "us\nTotal: " << duration_cast<microseconds>(total).count()
           << "us\n";
+        std::cerr << "Best score this generation: " << best_score << "\n";
       }
       ga.next_generation();
       vals = ga.current_generation_results();

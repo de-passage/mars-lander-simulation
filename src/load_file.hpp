@@ -1,6 +1,7 @@
 #pragma once
 
-#include "game_data.hpp"
+#include "simulation_data.hpp"
+#include <filesystem>
 
 struct file_data {
   simulation_data initial_values;

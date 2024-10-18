@@ -195,5 +195,11 @@ done
 
 # Cleanup, pushing all remaining includes to the top of the file
 sed '/^\s*#include\s\+<\([^>]*\)>/d;/^\s*#pragma\s\+once/d' -i "$temp_file"
-sed 's/;\s*/\n/g' <<< "${system_includes[*]}"| sort | uniq > "$target_file"
+added_includes=()
+for inc in "${system_includes[@]}"; do
+  if ! [[ "${inc}" =~ tracy ]]; then
+    added_includes+=("${inc}")
+  fi
+done
+sed 's/;\s*/\n/g' <<< "${added_includes[*]}"| sort | uniq > "$target_file"
 cat "$temp_file" >> "$target_file"

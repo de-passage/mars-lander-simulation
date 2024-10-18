@@ -36,7 +36,7 @@ int main(int argc, const char **argv) {
       data.ground_line,
       data.initial_values,
   };
-  ga.play(ga_data::generation_parameters{});
+  ga.simulate_initial_generation(ga_data::generation_parameters{});
 
   using namespace std::chrono;
   using clock = steady_clock;
@@ -48,7 +48,7 @@ int main(int argc, const char **argv) {
   auto min_time = clock::duration::max();
   int min_gen_n = 0;
   int max_gen_n = 0;
-  ga.play(params);
+  ga.simulate_initial_generation(params);
   auto vals = ga.current_generation_results();
   const auto play = [&] {
     while (1) {

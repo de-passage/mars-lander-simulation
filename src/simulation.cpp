@@ -84,17 +84,6 @@ simulation::touchdown(const coordinate_list &coordinates, const coord_t &start,
   return {simulation::status::none, crash_reason::none};
 }
 
-segment<coordinates> simulation::landing_area() const {
-  ZoneScoped;
-  assert(coordinates->size() > 1);
-  for (size_t i = 0; i < coordinates->size() - 1; ++i) {
-    if ((*coordinates)[i].y == (*coordinates)[i + 1].y) {
-      return segment{(*coordinates)[i], (*coordinates)[i + 1]};
-    }
-  }
-  throw std::runtime_error("No landing area found");
-}
-
 simulation::tick_data
 simulation::compute_next_tick(const simulation_data &current,
                               const coordinate_list &coordinates,

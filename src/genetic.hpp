@@ -39,7 +39,7 @@ struct ga_data {
     landing_site_ = find_landing_site_();
   }
 
-  void play(generation_parameters params);
+  void simulate_initial_generation(generation_parameters params);
 
   void set_data(coordinate_list coordinates, simulation_data initial) {
     std::lock_guard lock{mutex_};
@@ -90,12 +90,11 @@ struct ga_data {
 
     double distance;
   };
+
   static fitness_values
   compute_fitness_values(const simulation::simulation_result &result,
                          const generation_parameters &params,
                          const segment<coordinates> &landing_site);
-
-  static fitness_score_list compute_fitness_values(const generation_result& result, const generation_parameters& params, const segment<coordinates>& landing_site);
 
 private:
   mutable std::mutex mutex_;
@@ -109,16 +108,7 @@ private:
   mutable generation_result cached_results_;
   unsigned int current_generation_name_{0};
 
-  static simulation::simulation_result
-  run_simulation(const individual &individual, const simulation_data &initial,
-       const coordinate_list &landing_site);
-
   segment<coordinates> find_landing_site_() const;
-
-  static fitness_score
-  calculate_fitness_score_(const simulation::simulation_result &result,
-                           const generation_parameters &params,
-                           const segment<coordinates> &landing_site);
 
   void play_();
 

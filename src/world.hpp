@@ -54,7 +54,7 @@ struct world_data : sf::Drawable {
 
   void new_generation() {
     assert(!generating_);
-    ga.play(ga_params);
+    ga.simulate_initial_generation(ga_params);
   }
 
   // Playback

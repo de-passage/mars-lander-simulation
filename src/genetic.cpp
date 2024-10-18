@@ -8,27 +8,12 @@
 #include <limits>
 #include <mutex>
 
-simulation::simulation_result ga_data::run_simulation(const individual &individual,
-                                            const simulation_data &initial,
-                                            const coordinate_list &coor) {
-  simulation sim{coor};
-
-  return sim.set_data(initial, individual);
-}
-
-void ga_data::play(generation_parameters params) {
+void ga_data::simulate_initial_generation(generation_parameters params) {
   params_ = params;
   current_generation_ =
       random_generation(params.population_size, initial_, landing_site_);
   current_generation_name_ = 0;
   play_();
-}
-
-ga_data::fitness_score
-ga_data::calculate_fitness_score_(const simulation::simulation_result &result,
-                                  const generation_parameters &params,
-                                  const segment<coordinates> &landing_site) {
-  return compute_fitness_values(result, params, landing_site).score;
 }
 
 ga_data::fitness_values
@@ -124,18 +109,6 @@ ga_data::compute_fitness_values(const simulation::simulation_result &result,
                  values.weighted_horizontal_speed_score +
                  values.weighted_rotation_score;
   return values;
-}
-
-ga_data::fitness_score_list
-ga_data::compute_fitness_values(const generation_result &results,
-                                const generation_parameters &params,
-                                const segment<coordinates> &landing_site) {
-  fitness_score_list scores;
-  scores.reserve(results.size());
-  for (const auto &result : results) {
-    scores.push_back(calculate_fitness_score_(result, params, landing_site));
-  }
-  return scores;
 }
 
 std::pair<size_t, size_t> selection(const ga_data::fitness_score_list &scores,
@@ -363,8 +336,12 @@ generation next_generation(const generation &this_generation,
 void ga_data::next_generation() {
   ZoneScoped;
 
-  auto scores = compute_fitness_values(current_generation_results_, params_,
-                                       landing_site_);
+  ga_data::fitness_score_list scores;
+  scores.reserve(current_generation_results_.size());
+  for (const auto &result : current_generation_results_) {
+    scores.push_back(compute_fitness_values(result, params_, landing_site_).score);
+  }
+
   auto new_generation = ::next_generation(
       current_generation_, std::move(scores), params_, landing_site_);
 
@@ -417,7 +394,7 @@ void ga_data::play_() {
   assert(results.size() == 0);
 
   for (const auto& ind : current_generation_) {
-    auto result = ga_data::run_simulation(ind, initial_, coordinates_);
+    auto result = simulation::simulate(coordinates_, initial_, ind);
     {
       std::lock_guard lock{result_mutex};
       results.push_back(std::move(result));

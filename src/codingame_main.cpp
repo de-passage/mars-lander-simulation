@@ -67,7 +67,7 @@ int main() {
 
   auto start = clock::now();
   auto total = clock::duration::zero();
-  ga.play(params);
+  ga.simulate_initial_generation(params);
   auto vals = ga.current_generation_results();
   const auto play = [&] {
     while (1) {

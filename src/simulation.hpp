@@ -14,16 +14,8 @@ concept DecisionProcess = requires(F &f, const simulation_data &data,
   { f(data, ground_line, i) } -> std::same_as<decision>;
 };
 
-inline decision do_nothing(const simulation_data &) {
-  return {
-      .rotate = 0,
-      .power = 0,
-  };
-}
-
 struct simulation {
   using coord_t = ::coordinates;
-  simulation(const coordinate_list &coordinates) : coordinates(&coordinates) {}
   constexpr simulation(const simulation &) = delete;
   constexpr simulation(simulation &&) = delete;
   constexpr simulation &operator=(const simulation &) = delete;
@@ -57,42 +49,41 @@ struct simulation {
     }
   };
 
-  segment<coord_t> landing_area() const;
-
-  template <DecisionProcess F = decltype(do_nothing)>
-  simulation_result set_data(simulation_data data, F &&process = do_nothing);
-  void set_history_point(int index);
+  static simulation_result simulate(const coordinate_list &coordinates,
+                                    simulation_data data,
+                                    DecisionProcess auto &&process);
 
   static tick_data simulate(const simulation_data &last_data,
                             decision this_turn,
                             const coordinate_list &coordinates);
-  coordinate_list const *coordinates;
 
-  [[nodiscard]] static tick_data compute_next_tick(const simulation_data &data,
-      const coordinate_list& coordinates,
-                                                   int from_frame,
-                                                   int wanted_rotation);
+  [[nodiscard]] static tick_data
+  compute_next_tick(const simulation_data &data,
+                    const coordinate_list &coordinates, int from_frame,
+                    int wanted_rotation);
 
   [[nodiscard]] static std::pair<status, crash_reason>
-  touchdown(const coordinate_list& coordinates, const coord_t &current, tick_data &next);
+  touchdown(const coordinate_list &coordinates, const coord_t &current,
+            tick_data &next);
 };
 
 simulation::simulation_result
-simulation::set_data(simulation_data new_data, DecisionProcess auto &&process) {
+simulation::simulate(const coordinate_list &coordinates,
+                     simulation_data new_data, DecisionProcess auto &&process) {
   std::vector<simulation_data> history;
   std::vector<decision> decision_history;
+
   history.push_back(std::move(new_data));
+
   size_t current_frame = 0;
   auto last_data = new_data;
-
-  assert(coordinates && coordinates->size() > 1);
 
   status st = status::none;
   crash_reason reason = crash_reason::none;
   while (st == status::none) {
 
-    auto decision = process(last_data, *coordinates, current_frame);
-    auto tick = simulate(last_data, decision, *coordinates);
+    auto decision = process(last_data, coordinates, current_frame);
+    auto tick = simulate(last_data, decision, coordinates);
 
     st = tick.status;
     last_data = tick.data;
@@ -101,15 +92,13 @@ simulation::set_data(simulation_data new_data, DecisionProcess auto &&process) {
     history.push_back(std::move(tick).data);
     decision_history.push_back(decision);
 
-    current_frame ++;
+    current_frame++;
   }
 
   assert(history.size() >= 1);
 
-  return simulation_result{
-      .history = std::move(history),
-      .decisions = std::move(decision_history),
-      .final_status = st,
-      .reason = reason
-  };
+  return simulation_result{.history = std::move(history),
+                           .decisions = std::move(decision_history),
+                           .final_status = st,
+                           .reason = reason};
 }

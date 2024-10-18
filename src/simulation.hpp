@@ -16,6 +16,7 @@ concept DecisionProcess = requires(F &f, const simulation_data &data,
 
 struct simulation {
   using coord_t = ::coordinates;
+  constexpr simulation() = delete;
   constexpr simulation(const simulation &) = delete;
   constexpr simulation(simulation &&) = delete;
   constexpr simulation &operator=(const simulation &) = delete;
@@ -38,7 +39,7 @@ struct simulation {
     simulation::crash_reason reason;
   };
 
-  struct simulation_result {
+  struct result {
     std::vector<simulation_data> history;
     std::vector<decision> decisions;
     simulation::status final_status;
@@ -49,7 +50,7 @@ struct simulation {
     }
   };
 
-  static simulation_result simulate(const coordinate_list &coordinates,
+  static result simulate(const coordinate_list &coordinates,
                                     simulation_data data,
                                     DecisionProcess auto &&process);
 
@@ -67,7 +68,7 @@ struct simulation {
             tick_data &next);
 };
 
-simulation::simulation_result
+simulation::result
 simulation::simulate(const coordinate_list &coordinates,
                      simulation_data new_data, DecisionProcess auto &&process) {
   std::vector<simulation_data> history;
@@ -97,7 +98,7 @@ simulation::simulate(const coordinate_list &coordinates,
 
   assert(history.size() >= 1);
 
-  return simulation_result{.history = std::move(history),
+  return result{.history = std::move(history),
                            .decisions = std::move(decision_history),
                            .final_status = st,
                            .reason = reason};

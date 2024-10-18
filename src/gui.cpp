@@ -127,7 +127,7 @@ std::string crash_reason_to_string(simulation::crash_reason reason) {
   return result;
 }
 
-void draw_history(const simulation::simulation_result &simu,
+void draw_history(const simulation::result &simu,
                   world_data &world) {
   if (ImGui::Begin("Command History", nullptr,
                    ImGuiWindowFlags_HorizontalScrollbar)) {

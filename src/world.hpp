@@ -58,7 +58,7 @@ struct world_data : sf::Drawable {
   }
 
   // Playback
-  simulation::simulation_result setup_currently_selected_for_playback() {
+  simulation::result setup_currently_selected_for_playback() {
     assert(selected_individual.has_value());
     assert(loaded_.ground_line.size() > 0);
     assert(!generating_);
@@ -104,7 +104,7 @@ private:
   segment<coordinates> landing_site_;
   std::optional<unsigned int> last_selected_{std::nullopt};
 
-  void draw_line_(const simulation::simulation_result &result,
+  void draw_line_(const simulation::result &result,
                   sf::RenderTarget &window, sf::RenderStates states) const;
 
   void reset_individual_selection_() {

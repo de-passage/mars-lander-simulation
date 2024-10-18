@@ -13,7 +13,7 @@
 #include <vector>
 
 struct game_data {
-  game_data(view_transform transform, simulation::simulation_result simu,
+  game_data(view_transform transform, simulation::result simu,
             coordinate_list ground_line)
       : transform{transform}, simu_{std::move(simu)}, coordinates_{std::move(
                                                           ground_line)} {}
@@ -75,7 +75,7 @@ private:
   coordinate_list coordinates_;
 
   simulation_data initial_;
-  simulation::simulation_result simu_;
+  simulation::result simu_;
 
   size_t current_frame_{0};
 

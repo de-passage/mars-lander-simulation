@@ -17,7 +17,7 @@
 struct ga_data {
   using fitness_score = double;
 
-  using generation_result = std::vector<simulation::simulation_result>;
+  using generation_result = std::vector<simulation::result>;
   using fitness_score_list = std::vector<fitness_score>;
 
   struct generation_parameters {
@@ -92,7 +92,7 @@ struct ga_data {
   };
 
   static fitness_values
-  compute_fitness_values(const simulation::simulation_result &result,
+  compute_fitness_values(const simulation::result &result,
                          const generation_parameters &params,
                          const segment<coordinates> &landing_site);
 
@@ -110,9 +110,9 @@ private:
 
   segment<coordinates> find_landing_site_() const;
 
-  void play_();
+  static generation_result simulate_(const generation& current_generation, const coordinate_list& coordinates, const simulation_data& initial);
 
   segment<coordinates> landing_site_{};
 
-  thread_pool tp_{};
+  static thread_pool tp_;
 };

@@ -41,8 +41,7 @@ int main() {
   int fuel;    // the quantity of remaining fuel in liters.
   int rotate;  // the rotation angle in degrees (-90 to 90).
   int power;   // the thrust power (0 to 4).
-  std::cin >> x >> y >> h_speed >> v_speed >> fuel >> rotate >> power;
-  std::cin.ignore();
+    std::cin >> x >> y >> h_speed >> v_speed >> fuel >> rotate >> power;
 
   simulation_data initial_data{
       .position = {(float)x, (float)y},
@@ -63,6 +62,7 @@ int main() {
 
   ga_data ga(points, initial_data);
   using namespace std::chrono;
+  using namespace std::chrono_literals;
   using clock = steady_clock;
 
   auto start = clock::now();
@@ -72,6 +72,7 @@ int main() {
   const auto play = [&] {
     while (1) {
       ga_data::fitness_score best_score = std::numeric_limits<ga_data::fitness_score>::min();
+      int best_idx = 0;
       for (int i = 0; i < vals.size(); ++i) {
         auto &val = vals[i];
         if (val.success()) {
@@ -80,11 +81,18 @@ int main() {
         auto score = ga_data::compute_fitness_values(val, params, landing).score;
         if (score > best_score) {
           best_score = score;
+          best_idx = i;
         }
       }
       auto now = clock::now();
       auto dur = now - start;
+      start = now;
       total += dur;
+      if (total >= 99ms) {
+        std::cerr << "Premature return because too slow, processed "
+          << ga.current_generation_name() << " generations\n";
+        return best_idx;
+      }
       if (ga.current_generation_name() % 2 == 0) {
         std::cerr << "Generation " << ga.current_generation_name()
           << " took: " << duration_cast<microseconds>(dur).count()
@@ -101,8 +109,16 @@ int main() {
 
   int current_frame = 0;
   while (1) {
+    simulation_data current_data {
+      .position = {(float)x, (float)y},
+      .velocity = {(float)h_speed, (float)v_speed},
+      .fuel = fuel,
+      .rotate = rotate,
+      .power = power,
+    };
+    auto d = result(current_data, points, current_frame++);
+    // Rotation is inverted on codingame
     std::cin >> x >> y >> h_speed >> v_speed >> fuel >> rotate >> power;
-    auto d = result(initial_data, points, current_frame++);
-    std::cout << d.rotate << " " << d.power << std::endl;
+    std::cin.ignore();
   }
 }

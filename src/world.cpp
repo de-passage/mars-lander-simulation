@@ -41,7 +41,7 @@ void world_data::draw(sf::RenderTarget &window, sf::RenderStates states) const {
   window.draw(line, states);
 }
 
-void world_data::draw_line_(const simulation::simulation_result &result,
+void world_data::draw_line_(const simulation::result &result,
                             sf::RenderTarget &window,
                             sf::RenderStates states) const {
   sf::VertexArray line(sf::LineStrip);

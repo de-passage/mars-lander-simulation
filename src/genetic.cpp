@@ -7,17 +7,20 @@
 #include <iostream>
 #include <limits>
 #include <mutex>
+#include <thread>
+#include <future>
 
 void ga_data::simulate_initial_generation(generation_parameters params) {
   params_ = params;
   current_generation_ =
       random_generation(params.population_size, initial_, landing_site_);
-  current_generation_name_ = 0;
-  play_();
+  current_generation_name_ = 1;
+  current_generation_results_ =
+      simulate_(current_generation_, coordinates_, initial_);
 }
 
 ga_data::fitness_values
-ga_data::compute_fitness_values(const simulation::simulation_result &result,
+ga_data::compute_fitness_values(const simulation::result &result,
                                 const generation_parameters &params,
                                 const segment<coordinates> &landing_site) {
   ZoneScoped;
@@ -339,7 +342,8 @@ void ga_data::next_generation() {
   ga_data::fitness_score_list scores;
   scores.reserve(current_generation_results_.size());
   for (const auto &result : current_generation_results_) {
-    scores.push_back(compute_fitness_values(result, params_, landing_site_).score);
+    scores.push_back(
+        compute_fitness_values(result, params_, landing_site_).score);
   }
 
   auto new_generation = ::next_generation(
@@ -351,7 +355,9 @@ void ga_data::next_generation() {
     std::lock_guard lock{mutex_};
     current_generation_ = std::move(new_generation);
   }
-  play_();
+  current_generation_name_++;
+  current_generation_results_ =
+      simulate_(current_generation_, coordinates_, initial_);
 }
 
 segment<coordinates> ga_data::find_landing_site_() const {
@@ -379,35 +385,37 @@ std::string to_string(simulation::status status) {
   return "unknown";
 }
 
-void ga_data::play_() {
-  current_generation_name_++;
+thread_pool ga_data::tp_{};
+
+ga_data::generation_result
+ga_data::simulate_(const generation &current_generation,
+                   const coordinate_list &coordinates,
+                   const simulation_data &initial) {
   generation_result results;
+  std::vector<std::future<simulation::result>> futures;
 
-  std::mutex result_mutex;
-  std::condition_variable one_done;
-
-  int done{0};
-
-  auto size = current_generation_.size();
+  auto size = current_generation.size();
   results.reserve(size);
+  futures.reserve(size);
+  std::vector<std::thread> threads;
+  threads.reserve(size);
 
-  assert(results.size() == 0);
+  for (const auto &ind : current_generation) {
+    std::packaged_task<simulation::result()> task(
+        [coordinates, initial, ind] {
+          return simulation::simulate(coordinates, initial, ind);
+        });
 
-  for (const auto& ind : current_generation_) {
-    auto result = simulation::simulate(coordinates_, initial_, ind);
-    {
-      std::lock_guard lock{result_mutex};
-      results.push_back(std::move(result));
-      done++;
-      one_done.notify_one();
-    }
+    futures.push_back(task.get_future());
+    threads.push_back(std::thread(std::move(task)));
   }
 
-  std::unique_lock wait_for_completion{result_mutex};
-  one_done.wait(wait_for_completion, [&] { return done == size; });
+  for (auto &future : futures) {
+    results.push_back(future.get());
+  }
+  for (auto &thread : threads) {
+    thread.join();
+  }
 
-  std::lock_guard lock{mutex_};
-
-  current_generation_results_ = results;
-  assert(current_generation_results_.size() == params_.population_size);
+  return results;
 }

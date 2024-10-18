@@ -81,6 +81,3 @@ generation random_generation(size_t size, const simulation_data &initial,
   }
   return gen;
 }
-
-static_assert(DecisionProcess<individual>,
-              "individual must be a DecisionProcess");

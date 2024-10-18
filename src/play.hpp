@@ -5,5 +5,3 @@ struct decision {
   int rotate;
   int power;
 };
-
-decision decide(const simulation_data& data, const std::vector<coordinates>& ground_line);

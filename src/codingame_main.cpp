@@ -99,9 +99,10 @@ int main() {
   size_t idx = play();
   individual result = ga.current_generation()[idx];
 
+  int current_frame = 0;
   while (1) {
     std::cin >> x >> y >> h_speed >> v_speed >> fuel >> rotate >> power;
-    auto d = result(initial_data, points);
+    auto d = result(initial_data, points, current_frame++);
     std::cout << d.rotate << " " << d.power << std::endl;
   }
 }

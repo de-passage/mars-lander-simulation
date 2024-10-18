@@ -8,10 +8,10 @@
 #include "simulation_data.hpp"
 
 template <class F>
-concept DecisionProcess =
-    requires(F &f, const simulation_data &data,
-             const std::vector<coordinates> &ground_line) {
-  { f(data, ground_line) } -> std::same_as<decision>;
+concept DecisionProcess = requires(F &f, const simulation_data &data,
+                                   const std::vector<coordinates> &ground_line,
+                                   int i) {
+  { f(data, ground_line, i) } -> std::same_as<decision>;
 };
 
 inline decision do_nothing(const simulation_data &) {
@@ -23,8 +23,7 @@ inline decision do_nothing(const simulation_data &) {
 
 struct simulation {
   using coord_t = ::coordinates;
-  simulation(const coordinate_list &coordinates)
-      : coordinates(&coordinates) {}
+  simulation(const coordinate_list &coordinates) : coordinates(&coordinates) {}
   constexpr simulation(const simulation &) = delete;
   constexpr simulation(simulation &&) = delete;
   constexpr simulation &operator=(const simulation &) = delete;
@@ -47,51 +46,8 @@ struct simulation {
     simulation::crash_reason reason;
   };
 
-  crash_reason why_crash() const;
-  segment<coord_t> landing_area() const;
-
-  template <DecisionProcess F = decltype(do_nothing)>
-  void set_data(simulation_data data, F &&process = do_nothing);
-  void set_history_point(int index);
-
-  bool simulate(decision this_turn);
-
-  [[nodiscard]] inline int current_frame() const { return current_frame_; }
-  [[nodiscard]] inline int frame_count() const { return history_.size(); }
-  [[nodiscard]] inline const tick_data &current_tick() const {
-    return history_[current_frame_];
-  }
-  [[nodiscard]] inline const tick_data &next_tick() const {
-    int frame =
-        std::min(current_frame_ + 1, static_cast<int>(history_.size() - 1));
-    return history_[frame];
-  }
-
-  [[nodiscard]] inline const simulation_data &current_data() const {
-    return current_tick().data;
-  }
-  [[nodiscard]] inline const simulation_data &next_data() const {
-    return next_tick().data;
-  }
-  [[nodiscard]] inline simulation::status current_status() const {
-    return current_tick().status;
-  }
-  [[nodiscard]] inline simulation::status next_status() const {
-    return next_tick().status;
-  }
-
-  coordinate_list const *coordinates;
-
-  const std::vector<decision> &decisions() const { return decision_history_; }
-  const std::vector<tick_data> &history() const { return history_; }
-
-  [[nodiscard]] inline simulation::status simulation_status() const {
-    assert(frame_count() > 0);
-    return history_.back().status;
-  }
-
   struct simulation_result {
-    std::vector<tick_data> history;
+    std::vector<simulation_data> history;
     std::vector<decision> decisions;
     simulation::status final_status;
     crash_reason reason;
@@ -99,65 +55,61 @@ struct simulation {
     [[nodiscard]] inline bool success() const {
       return final_status == simulation::status::land;
     }
-
-    [[nodiscard]] std::optional<coord_t>
-    landing_site(const segment<coord_t> &landing_site) const {
-      assert(history.size() >= 2);
-      auto &p1 = history[history.size() - 1].data.position;
-      auto &p2 = history[history.size() - 1].data.position;
-      auto i = intersection(landing_site, {p1, p2});
-      assert(i.has_value());
-      return i.value();
-    }
   };
 
-  struct simulation_result get_simulation_result() && {
-    auto status = history_.back().status;
-    auto reason = why_crash();
-    assert(status != simulation::status::crash ? reason == 0 : true);
-    return {
-        .history = std::move(history_),
-        .decisions = std::move(decision_history_),
-        .final_status = status,
-        .reason = reason,
-    };
-  }
+  segment<coord_t> landing_area() const;
 
-  struct simulation_result get_simulation_result() const & {
-    return {
-        .history = history_,
-        .decisions = decision_history_,
-        .final_status = history_.back().status,
-        .reason = why_crash(),
-    };
-  }
+  template <DecisionProcess F = decltype(do_nothing)>
+  simulation_result set_data(simulation_data data, F &&process = do_nothing);
+  void set_history_point(int index);
 
-private:
-  int current_frame_{0};
-  std::vector<tick_data> history_;
-  std::vector<decision> decision_history_;
-  [[nodiscard]] tick_data compute_next_tick_(int from_frame,
-                                             int wanted_rotation,
-                                             int wanted_power) const;
+  static tick_data simulate(const simulation_data &last_data,
+                            decision this_turn,
+                            const coordinate_list &coordinates);
+  coordinate_list const *coordinates;
 
-  [[nodiscard]] std::pair<status, crash_reason>
-  touchdown_(const coord_t &current, tick_data &next) const;
+  [[nodiscard]] static tick_data compute_next_tick(const simulation_data &data,
+      const coordinate_list& coordinates,
+                                                   int from_frame,
+                                                   int wanted_rotation);
+
+  [[nodiscard]] static std::pair<status, crash_reason>
+  touchdown(const coordinate_list& coordinates, const coord_t &current, tick_data &next);
 };
 
-void simulation::set_data(simulation_data new_data,
-                          DecisionProcess auto &&process) {
-  history_.clear(); // must stay before compute_next_tick
-  decision_history_.clear();
-  history_.push_back(tick_data{std::move(new_data), status::none});
-  current_frame_ = 0;
+simulation::simulation_result
+simulation::set_data(simulation_data new_data, DecisionProcess auto &&process) {
+  std::vector<simulation_data> history;
+  std::vector<decision> decision_history;
+  history.push_back(std::move(new_data));
+  size_t current_frame = 0;
+  auto last_data = new_data;
 
   assert(coordinates && coordinates->size() > 1);
 
-  while (simulate(process(history_.back().data, *coordinates))) {
+  status st = status::none;
+  crash_reason reason = crash_reason::none;
+  while (st == status::none) {
+
+    auto decision = process(last_data, *coordinates, current_frame);
+    auto tick = simulate(last_data, decision, *coordinates);
+
+    st = tick.status;
+    last_data = tick.data;
+    reason = tick.reason;
+
+    history.push_back(std::move(tick).data);
+    decision_history.push_back(decision);
+
+    current_frame ++;
   }
 
-  // Needs to be reset since the simulation loop increases it
-  current_frame_ = 0;
+  assert(history.size() >= 1);
 
-  assert(history_.size() >= 1);
+  return simulation_result{
+      .history = std::move(history),
+      .decisions = std::move(decision_history),
+      .final_status = st,
+      .reason = reason
+  };
 }

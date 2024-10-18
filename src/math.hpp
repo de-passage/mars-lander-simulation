@@ -20,6 +20,14 @@ template <Coordinates T> struct segment {
   constexpr segment() = default;
   constexpr segment(T start, T end)
       : start{std::move(start)}, end{std::move(end)} {}
+  constexpr segment(const segment&) = default;
+  constexpr segment(segment&&) = default;
+  constexpr segment& operator=(const segment&) = default;
+  constexpr segment& operator=(segment&&) = default;
+
+  constexpr bool operator==(const segment &other) const {
+    return start == other.start && end == other.end;
+  }
 };
 
 template <Coordinates T> segment(T, T) -> segment<T>;

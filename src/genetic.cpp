@@ -6,30 +6,29 @@
 
 #include <iostream>
 #include <limits>
+#include <mutex>
 
-simulation::simulation_result ga_data::play(individual &individual) {
-  simulation sim{coordinates_};
-  landing_site_ = find_landing_site_();
+simulation::simulation_result ga_data::run_simulation(const individual &individual,
+                                            const simulation_data &initial,
+                                            const coordinate_list &coor) {
+  simulation sim{coor};
 
-  sim.set_data(initial_, individual);
-  return std::move(sim).get_simulation_result();
+  return sim.set_data(initial, individual);
 }
 
 void ga_data::play(generation_parameters params) {
   params_ = params;
-  current_generation_ = random_generation(params.population_size, initial_);
+  current_generation_ =
+      random_generation(params.population_size, initial_, landing_site_);
   current_generation_name_ = 0;
   play_();
 }
 
-ga_data::fitness_score ga_data::calculate_fitness_score_(
-    const simulation::simulation_result &result) const {
-  return calculate_fitness(result).score;
-}
-
-ga_data::fitness_values
-ga_data::calculate_fitness(const simulation::simulation_result &result) const {
-  return compute_fitness_values(result, params_, landing_site_);
+ga_data::fitness_score
+ga_data::calculate_fitness_score_(const simulation::simulation_result &result,
+                                  const generation_parameters &params,
+                                  const segment<coordinates> &landing_site) {
+  return compute_fitness_values(result, params, landing_site).score;
 }
 
 ga_data::fitness_values
@@ -43,10 +42,10 @@ ga_data::compute_fitness_values(const simulation::simulation_result &result,
 
   fitness_values values;
 
-  fitness_score remaining_fuel = last.data.fuel;
-  coordinates position = last.data.position;
+  fitness_score remaining_fuel = last.fuel;
+  coordinates position = last.position;
   coordinates position_before_last =
-      result.history[result.history.size() - 2].data.position;
+      result.history[result.history.size() - 2].position;
 
   const double MAX_ABSOLUTE_DISTANCE =
       (double)distance(coordinates{0, 0}, coordinates{GAME_WIDTH, GAME_HEIGHT});
@@ -67,7 +66,7 @@ ga_data::compute_fitness_values(const simulation::simulation_result &result,
   const fitness_score importance_of_distance = square(values.dist_score);
 
   values.rotation_score =
-      1. - normalize(static_cast<fitness_score>(std::abs(last.data.rotate)), 0.,
+      1. - normalize(static_cast<fitness_score>(std::abs(last.rotate)), 0.,
                      (double)MAX_ROTATION);
   if (values.distance > std::numeric_limits<double>::epsilon()) {
     values.weighted_rotation_score = 0;
@@ -80,32 +79,32 @@ ga_data::compute_fitness_values(const simulation::simulation_result &result,
 
   constexpr double MAX_ABSOLUTE_SPEED = 200.;
 
-  if (std::abs(last.data.velocity.y) <= MAX_VERTICAL_SPEED) {
+  if (std::abs(last.velocity.y) <= MAX_VERTICAL_SPEED) {
     values.vertical_speed_score = 1.;
   } else {
     const fitness_score vspeed_rel_to_max =
-        std::max(0., std::abs(last.data.velocity.y) - MAX_VERTICAL_SPEED);
+        std::max(0., std::abs(last.velocity.y) - MAX_VERTICAL_SPEED);
     values.vertical_speed_score =
         1. - normalize(vspeed_rel_to_max, 0., MAX_ABSOLUTE_SPEED);
   }
   if (values.distance > std::numeric_limits<double>::epsilon() ||
-      last.data.rotate != 0) {
+      last.rotate != 0) {
     values.weighted_vertical_speed_score = 0;
   } else {
     values.weighted_vertical_speed_score =
         square(values.vertical_speed_score) * params.vertical_speed_weight;
   }
 
-  if (std::abs(last.data.velocity.x) <= MAX_HORIZONTAL_SPEED) {
+  if (std::abs(last.velocity.x) <= MAX_HORIZONTAL_SPEED) {
     values.horizontal_speed_score = 1.;
   } else {
     const fitness_score hspeed_rel_to_max =
-        std::max(0., std::abs(last.data.velocity.x) - MAX_HORIZONTAL_SPEED);
+        std::max(0., std::abs(last.velocity.x) - MAX_HORIZONTAL_SPEED);
     values.horizontal_speed_score =
         1. - normalize(hspeed_rel_to_max, 0., MAX_ABSOLUTE_SPEED);
   }
   if (values.distance > std::numeric_limits<double>::epsilon() ||
-      last.data.rotate != 0) {
+      last.rotate != 0) {
     values.weighted_horizontal_speed_score = 0;
   } else {
     values.weighted_horizontal_speed_score =
@@ -127,12 +126,14 @@ ga_data::compute_fitness_values(const simulation::simulation_result &result,
   return values;
 }
 
-ga_data::fitness_score_list ga_data::calculate_fitness_() const {
+ga_data::fitness_score_list
+ga_data::compute_fitness_values(const generation_result &results,
+                                const generation_parameters &params,
+                                const segment<coordinates> &landing_site) {
   fitness_score_list scores;
-  std::lock_guard lock{mutex_};
-  scores.reserve(current_generation_results_.size());
-  for (const auto &result : current_generation_results_) {
-    scores.push_back(calculate_fitness_score_(result));
+  scores.reserve(results.size());
+  for (const auto &result : results) {
+    scores.push_back(calculate_fitness_score_(result, params, landing_site));
   }
   return scores;
 }
@@ -237,13 +238,12 @@ void mutate(individual &p, const ga_data::generation_parameters &params,
   }
 }
 
-void ga_data::next_generation() {
-  ZoneScoped;
-  fitness_score_list scores = calculate_fitness_();
-  generation this_generation = [&] {
-    std::lock_guard lock{mutex_};
-    return current_generation_;
-  }();
+generation next_generation(const generation &this_generation,
+                           ga_data::fitness_score_list scores,
+                           const ga_data::generation_parameters &params,
+                           const segment<coordinates> &landing_site) {
+  using fitness_score = ga_data::fitness_score;
+
   generation new_generation;
   new_generation.reserve(this_generation.size());
 
@@ -267,13 +267,13 @@ void ga_data::next_generation() {
   // Elitism
   // Choose a number of elites
   size_t elites =
-      static_cast<size_t>(this_generation.size() * params_.elitism_rate);
+      static_cast<size_t>(this_generation.size() * params.elitism_rate);
   std::vector<std::pair<fitness_score, size_t>> elite_indices;
   elite_indices.reserve(elites);
 
   // Prefill the elite indices with the first values, sorted in descending order
   for (int i = 0; i < elites; ++i) {
-    elite_indices.push_back({scores[i] * params_.elite_multiplier, i});
+    elite_indices.push_back({scores[i] * params.elite_multiplier, i});
   }
   std::sort(elite_indices.begin(), elite_indices.end(),
             [](auto &a, auto &b) { return a.first > b.first; });
@@ -282,7 +282,7 @@ void ga_data::next_generation() {
   if (elites != 0) {
     for (size_t i = elites; i < scores.size(); ++i) {
       for (size_t insert = 0; insert < elite_indices.size(); ++insert) {
-        auto adjusted_score = scores[i] * params_.elite_multiplier;
+        auto adjusted_score = scores[i] * params.elite_multiplier;
         if (adjusted_score > elite_indices[insert].first) {
           elite_indices.insert(elite_indices.begin() + insert,
                                {adjusted_score, i});
@@ -341,23 +341,34 @@ void ga_data::next_generation() {
     }
 
     // Mutation
-    mutate(new_generation[new_generation.size() - 2], params_, sd);
+    mutate(new_generation[new_generation.size() - 2], params, sd);
 
     // Drop extra child
     if (new_generation.size() >= this_generation.size()) {
       new_generation.pop_back();
     } else {
-      mutate(new_generation.back(), params_, sd);
+      mutate(new_generation.back(), params, sd);
     }
   }
 
   // Mutate the elites at the end to keep their genes during selection
   // but keep the best individual as is to prevent regression
   for (size_t i = 1; i < elites; ++i) {
-    mutate(new_generation[i], params_, sd);
+    mutate(new_generation[i], params, sd);
   }
 
-  assert(new_generation.size() == this_generation.size());
+  return new_generation;
+}
+
+void ga_data::next_generation() {
+  ZoneScoped;
+
+  auto scores = compute_fitness_values(current_generation_results_, params_,
+                                       landing_site_);
+  auto new_generation = ::next_generation(
+      current_generation_, std::move(scores), params_, landing_site_);
+
+  assert(new_generation.size() == current_generation_.size());
 
   {
     std::lock_guard lock{mutex_};
@@ -374,16 +385,52 @@ segment<coordinates> ga_data::find_landing_site_() const {
     }
     last = coord;
   }
-  throw std::runtime_error("No landing site found");
+  return {{-1, -1}, {-1, -1}};
+}
+
+std::string to_string(simulation::status status) {
+  switch (status) {
+  case simulation::status::none:
+    return "none";
+  case simulation::status::land:
+    return "land";
+  case simulation::status::crash:
+    return "crash";
+  case simulation::status::lost:
+    return "lost";
+  }
+  return "unknown";
 }
 
 void ga_data::play_() {
   current_generation_name_++;
   generation_result results;
-  results.reserve(current_generation_.size());
-  for (auto individual : current_generation_) {
-    results.push_back(play(individual));
+
+  std::mutex result_mutex;
+  std::condition_variable one_done;
+
+  int done{0};
+
+  auto size = current_generation_.size();
+  results.reserve(size);
+
+  assert(results.size() == 0);
+
+  for (const auto& ind : current_generation_) {
+    auto result = ga_data::run_simulation(ind, initial_, coordinates_);
+    {
+      std::lock_guard lock{result_mutex};
+      results.push_back(std::move(result));
+      done++;
+      one_done.notify_one();
+    }
   }
+
+  std::unique_lock wait_for_completion{result_mutex};
+  one_done.wait(wait_for_completion, [&] { return done == size; });
+
   std::lock_guard lock{mutex_};
-  current_generation_results_ = std::move(results);
+
+  current_generation_results_ = results;
+  assert(current_generation_results_.size() == params_.population_size);
 }

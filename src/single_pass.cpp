@@ -2,6 +2,7 @@
 #include "load_file.hpp"
 #include <filesystem>
 #include <iostream>
+#include "threadpool.hpp"
 
 int main(int argc, const char **argv) {
   if (argc < 2) {
@@ -53,6 +54,7 @@ int main(int argc, const char **argv) {
     while (1) {
       ga_data::fitness_score best_score =
           std::numeric_limits<ga_data::fitness_score>::min();
+
       for (int i = 0; i < vals.size(); ++i) {
         auto &val = vals[i];
         if (val.success()) {

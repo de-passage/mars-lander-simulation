@@ -70,7 +70,7 @@ void draw_coordinates(const std::vector<coordinates> &coordinates) {
   ImGui::EndTable();
 }
 
-void draw_frames(const std::vector<simulation::tick_data> &simu) {
+void draw_frames(const std::vector<simulation_data> &simu) {
   ImGui::Text("Frames (%zu)", simu.size());
 
   constexpr std::array headers = {"Position", "Velocity", "Fuel", "Rotate",
@@ -89,15 +89,15 @@ void draw_frames(const std::vector<simulation::tick_data> &simu) {
       const auto &frame = simu[i];
       ImGui::TableNextRow();
       ImGui::TableNextColumn();
-      ImGui::Text("(%.2f, %.2f)", frame.data.position.x, frame.data.position.y);
+      ImGui::Text("(%.2f, %.2f)", frame.position.x, frame.position.y);
       ImGui::TableNextColumn();
-      ImGui::Text("(%.1f, %.1f)", frame.data.velocity.x, frame.data.velocity.y);
+      ImGui::Text("(%.1f, %.1f)", frame.velocity.x, frame.velocity.y);
       ImGui::TableNextColumn();
-      ImGui::Text("%d", frame.data.fuel);
+      ImGui::Text("%d", frame.fuel);
       ImGui::TableNextColumn();
-      ImGui::Text("%d", frame.data.rotate);
+      ImGui::Text("%d", frame.rotate);
       ImGui::TableNextColumn();
-      ImGui::Text("%d", frame.data.power);
+      ImGui::Text("%d", frame.power);
     }
   }
   ImGui::EndTable();
@@ -135,7 +135,7 @@ void draw_history(const simulation::simulation_result &simu,
     ImGui::Text("Simulation result: %s", to_string(simu.final_status).data());
     if (simu.final_status == simulation::status::crash) {
       ImGui::Text("Crash reason: %s",
-                  crash_reason_to_string(simu.history.back().reason).data());
+                  crash_reason_to_string(simu.reason).data());
     } else {
       ImGui::Dummy(ImGui::CalcTextSize("Crash reason: "));
     }
@@ -474,7 +474,7 @@ void draw_ga_control(world_data &world) {
           assert(world.game.has_value());
           draw_frame(*world.game, world.configuration);
 
-          draw_frame_data("Selected individual", results.history.back().data);
+          draw_frame_data("Selected individual", results.history.back());
           ImGui::Separator();
           draw_fitness_values(ga_data::compute_fitness_values(
               results, world.ga_params, world.landing_site()));

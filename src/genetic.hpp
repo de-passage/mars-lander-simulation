@@ -1,10 +1,11 @@
 #pragma once
 
 #include "constants.hpp"
+#include "individual.hpp"
 #include "play.hpp"
 #include "simulation.hpp"
 #include "simulation_data.hpp"
-#include "individual.hpp"
+#include "threadpool.hpp"
 #include "tracy_shim.hpp"
 
 #include <array>
@@ -34,7 +35,9 @@ struct ga_data {
   };
 
   ga_data(coordinate_list coordinates = {}, simulation_data initial = {})
-      : coordinates_{std::move(coordinates)}, initial_{std::move(initial)} {}
+      : coordinates_{std::move(coordinates)}, initial_{std::move(initial)} {
+    landing_site_ = find_landing_site_();
+  }
 
   void play(generation_parameters params);
 
@@ -42,6 +45,7 @@ struct ga_data {
     std::lock_guard lock{mutex_};
     coordinates_ = std::move(coordinates);
     initial_ = std::move(initial);
+    landing_site_ = find_landing_site_();
     current_generation_results_.clear();
     current_generation_name_ = 0;
     current_generation_.clear();
@@ -85,14 +89,13 @@ struct ga_data {
     double weighted_rotation_score;
 
     double distance;
-
   };
-  fitness_values
-  calculate_fitness(const simulation::simulation_result &result) const;
   static fitness_values
   compute_fitness_values(const simulation::simulation_result &result,
                          const generation_parameters &params,
                          const segment<coordinates> &landing_site);
+
+  static fitness_score_list compute_fitness_values(const generation_result& result, const generation_parameters& params, const segment<coordinates>& landing_site);
 
 private:
   mutable std::mutex mutex_;
@@ -106,12 +109,20 @@ private:
   mutable generation_result cached_results_;
   unsigned int current_generation_name_{0};
 
-  simulation::simulation_result play(individual &individual);
+  static simulation::simulation_result
+  run_simulation(const individual &individual, const simulation_data &initial,
+       const coordinate_list &landing_site);
+
   segment<coordinates> find_landing_site_() const;
-  fitness_score
-  calculate_fitness_score_(const simulation::simulation_result &result) const;
-  fitness_score_list calculate_fitness_() const;
+
+  static fitness_score
+  calculate_fitness_score_(const simulation::simulation_result &result,
+                           const generation_parameters &params,
+                           const segment<coordinates> &landing_site);
+
   void play_();
 
   segment<coordinates> landing_site_{};
+
+  thread_pool tp_{};
 };

@@ -39,15 +39,15 @@ struct game_data {
 
   const simulation_data &current_data() const {
     assert(simu_.history.size() > current_frame_);
-    return simu_.history[current_frame_].data;
+    return simu_.history[current_frame_];
   }
   const simulation_data &initial_data() const {
     assert(!simu_.history.empty());
-    return simu_.history.front().data;
+    return simu_.history.front();
   }
   const simulation_data &next_data() const {
     assert(!simu_.history.empty());
-    return simu_.history[next_frame_index_()].data;
+    return simu_.history[next_frame_index_()];
   }
 
   size_t current_frame() const { return current_frame_; }

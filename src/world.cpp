@@ -49,7 +49,7 @@ void world_data::draw_line_(const simulation::simulation_result &result,
                         ? sf::Color::Cyan
                         : sf::Color::Yellow;
   for (auto &tick : result.history) {
-    auto position = transform.to_screen(tick.data.position);
+    auto position = transform.to_screen(tick.position);
     line.append(sf::Vertex{to_sfml(position), color});
   }
   window.draw(line, states);

@@ -17,6 +17,10 @@ struct coordinates {
   friend constexpr coordinates operator-(const coordinates &lhs, const coordinates &rhs) {
     return {lhs.x - rhs.x, lhs.y - rhs.y};
   }
+
+  friend constexpr bool operator==(const coordinates &lhs, const coordinates &rhs) {
+    return lhs.x == rhs.x && lhs.y == rhs.y;
+  }
 };
 using coordinate_list = std::vector<coordinates>;
 

@@ -27,8 +27,9 @@ set_source_list(
   simulation.cpp
   individual.cpp
   )
-add_library(genetic-algo OBJECT ${SOURCE_LIST})
+add_library(genetic-algo STATIC ${SOURCE_LIST})
 target_include_directories(genetic-algo PUBLIC ${SOURCE_DIR})
+target_link_libraries(genetic-algo PUBLIC pthread)
 
 set_source_list(
   game_data.cpp
@@ -36,14 +37,14 @@ set_source_list(
   load_file.cpp
   world.cpp
 )
-add_library(mars-lander-lib OBJECT ${SOURCE_LIST})
-target_link_libraries(mars-lander-lib PUBLIC sfml-system sfml-graphics genetic-algo genetic-algo)
+add_library(mars-lander-lib STATIC ${SOURCE_LIST})
+target_link_libraries(mars-lander-lib PUBLIC sfml-system sfml-graphics genetic-algo)
 target_include_directories(mars-lander-lib PUBLIC ${SOURCE_DIR})
 
 #################
 # VISUALIZATION #
 #################
-set(visualizaton-libraries sfml-window ImGui-SFML::ImGui-SFML mars-lander-lib genetic-algo)
+set(visualizaton-libraries sfml-window ImGui-SFML::ImGui-SFML mars-lander-lib)
 set_source_list(main.cpp gui.cpp)
 add_executable(mars-visualizer ${SOURCE_LIST})
 target_link_libraries(mars-visualizer PRIVATE ${visualizaton-libraries})
@@ -70,6 +71,10 @@ endif(TRACY_ENABLE)
 set_source_list(single_pass.cpp load_file.cpp)
 add_executable(single-pass ${SOURCE_LIST})
 target_link_libraries(single-pass PRIVATE genetic-algo)
+if (TRACY_ENABLE)
+  target_link_libraries(single-pass PRIVATE Tracy::TracyClient)
+  target_compile_definitions(single-pass PRIVATE TRACY_ENABLE TRACY_NO_EXIT)
+endif(TRACY_ENABLE)
 
 #############
 # CODINGAME #

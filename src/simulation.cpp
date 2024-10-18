@@ -95,7 +95,7 @@ simulation::compute_next_tick(const simulation_data &current,
   next_data.data.rotate = wanted_rotation;
   next_data.data.velocity.x =
       current.velocity.x +
-      wanted_power * (std::sin(next_data.data.rotate * DEG_TO_RAD));
+      wanted_power * (-std::sin(next_data.data.rotate * DEG_TO_RAD));
   next_data.data.velocity.y =
       current.velocity.y +
       wanted_power * (std::cos(next_data.data.rotate * DEG_TO_RAD)) -

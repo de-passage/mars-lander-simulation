@@ -88,7 +88,8 @@ int main() {
       auto dur = now - start;
       start = now;
       total += dur;
-      if (total >= 99ms) {
+      auto avg = total / ga.current_generation_name();
+      if (total >= (100ms - avg)) {
         std::cerr << "Premature return because too slow, processed "
           << ga.current_generation_name() << " generations\n";
         return best_idx;
@@ -118,6 +119,7 @@ int main() {
     };
     auto d = result(current_data, points, current_frame++);
     // Rotation is inverted on codingame
+    std::cout << d.rotate << " " << d.power << "\n";
     std::cin >> x >> y >> h_speed >> v_speed >> fuel >> rotate >> power;
     std::cin.ignore();
   }

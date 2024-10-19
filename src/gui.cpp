@@ -422,8 +422,14 @@ void draw_ga_control(world_data &world) {
       world.new_generation();
     }
 
-    ImGui::Separator();
+    ImGui::SameLine();
+    if (ImGui::Button("Create & Play")) {
+      world.new_generation();
+      world.start_generation();
+    }
     ImGui::EndDisabled();
+
+    ImGui::Separator();
 
     ImGui::Separator();
     bool kras = world.keep_running_after_solution;

@@ -1,5 +1,6 @@
 #ifndef NDEBUG
 #define NDEBUG
+#include "random.hpp"
 #endif
 
 #include "genetic.hpp"
@@ -12,7 +13,7 @@ int main() {
   ga_data::generation_parameters params{
       .mutation_rate = .02,
       .elitism_rate = .14,
-      .population_size = 100,
+      .population_size = 50,
       .fuel_weight = .1,
       .vertical_speed_weight = 1.,
       .horizontal_speed_weight = .98,
@@ -124,13 +125,13 @@ int main() {
   size_t idx = play();
   individual result = ga.current_generation()[idx];
   std::cerr << "Average time per generation: "
-            << avg.count()
+            << duration_cast<microseconds>(avg).count()
             << "us" << std::endl;
   std::cerr << "Min generation time: "
-            << min.count()
+            << duration_cast<microseconds>(min).count()
             << "us" << std::endl;
   std::cerr << "Max generation time: "
-            << max.count()
+            << duration_cast<microseconds>(max).count()
             << "us" << std::endl;
 
   int current_frame = 0;
@@ -148,4 +149,5 @@ int main() {
     std::cin >> x >> y >> h_speed >> v_speed >> fuel >> rotate >> power;
     std::cin.ignore();
   }
+  randf.stop();
 }

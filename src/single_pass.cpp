@@ -1,8 +1,8 @@
 #include "genetic.hpp"
 #include "load_file.hpp"
+#include "random.hpp"
 #include <filesystem>
 #include <iostream>
-#include "threadpool.hpp"
 
 int main(int argc, const char **argv) {
   if (argc < 2) {
@@ -18,9 +18,9 @@ int main(int argc, const char **argv) {
   }
 
   ga_data::generation_parameters params{
-      .mutation_rate = .02,
+      .mutation_rate = .01,
       .elitism_rate = .14,
-      .population_size = 100,
+      .population_size = 60,
       .fuel_weight = .1,
       .vertical_speed_weight = 1.,
       .horizontal_speed_weight = .98,
@@ -97,4 +97,5 @@ int main(int argc, const char **argv) {
   std::cout << "Max generation time: "
             << duration_cast<microseconds>(max_time).count()
             << "us (generation: " << max_gen_n << ")\n";
+  randf.stop();
 }

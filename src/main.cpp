@@ -1,6 +1,7 @@
 #include "config.hpp"
 #include "gui.hpp"
 #include "load_file.hpp"
+#include "random.hpp"
 #include "world.hpp"
 #include "tracy_shim.hpp"
 
@@ -150,10 +151,12 @@ int main(int argc, const char *argv[])
   // Cleanup ImGui-SFML
   ImGui::SFML::Shutdown();
 
+  randf.stop();
   return 0;
 }
 #ifdef NDEBUG
 catch (std::exception &e) {
+  randf.stop();
   std::cerr << "Error: " << e.what() << std::endl;
   return 1;
 }

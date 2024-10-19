@@ -54,6 +54,7 @@ struct world_data : sf::Drawable {
 
   void new_generation() {
     assert(!generating_);
+    selected_individual = std::nullopt;
     ga.simulate_initial_generation(ga_params);
   }
 

@@ -63,9 +63,12 @@ simulation::touchdown(const input_data &input, const coord_t &start,
     auto cs_bottom_right =
         coordinates{std::max(current_segment.start.x, current_segment.end.x),
                     std::max(current_segment.start.y, current_segment.end.y)};
-    if (cs_bottom_right.x < top_left.x || cs_top_left.x > bottom_right.x ||
-        cs_bottom_right.y < top_left.y || cs_top_left.y > bottom_right.y) {
+    if (cs_bottom_right.x < top_left.x || cs_bottom_right.y < top_left.y ||
+        cs_top_left.y > bottom_right.y) {
       continue;
+    }
+    if (cs_top_left.x > bottom_right.x) {
+      return {status::none, crash_reason::none};
     }
     auto inter = intersection(current_segment, segment{start, next.position});
     if (inter) {

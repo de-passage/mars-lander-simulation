@@ -29,8 +29,6 @@ struct individual {
                       const std::vector<coordinates> &ground_line,
                       int current_frame) const;
 
-  void find_landing_site_(const std::vector<coordinates> &ground_line);
-
   std::array<gene, 200> genes;
 
   friend bool operator==(const individual &lhs, const individual &rhs) {

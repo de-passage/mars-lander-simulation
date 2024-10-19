@@ -1,14 +1,27 @@
 #include "individual.hpp"
 #include "constants.hpp"
 #include "random.hpp"
-#include "simulation.hpp"
+#include "utility.hpp"
 
 decision individual::operator()(const simulation_data &data,
                                 const std::vector<coordinates> &ground_line,
                                 int current_frame) const {
-  if (segments_intersect(landing_site_,
-                         {data.position, data.position + data.velocity})) {
-    return {.rotate = 0, .power = data.power};
+  auto next_pos = data.position + data.velocity;
+  coordinates top_left = {
+      std::min(data.position.x, next_pos.x),
+      std::min(data.position.y, next_pos.y),
+  };
+  coordinates bottom_right = {
+      std::max(data.position.x, next_pos.x),
+      std::max(data.position.y, next_pos.y),
+  };
+
+  if (top_left.x <= landing_site_.end.x ||
+      bottom_right.x >= landing_site_.start.x) {
+
+    if (segments_intersect(landing_site_, {data.position, next_pos})) {
+      return {.rotate = 0, .power = data.power};
+    }
   }
 
   auto current_position = data.position;
@@ -24,22 +37,9 @@ decision individual::operator()(const simulation_data &data,
                            MAX_ROTATION),
       .power = std::clamp((int)new_power, 0, MAX_POWER),
   };
-  assert(result.rotate >= -MAX_ROTATION && result.rotate <= MAX_ROTATION);
-  assert(result.power >= 0 && result.power <= MAX_POWER);
+  ASSERT(result.rotate >= -MAX_ROTATION && result.rotate <= MAX_ROTATION);
+  ASSERT(result.power >= 0 && result.power <= MAX_POWER);
   return result;
-}
-
-void individual::find_landing_site_(
-    const std::vector<coordinates> &ground_line) {
-  coordinates last{-1, -1};
-  for (auto &coord : ground_line) {
-    if (last.x != -1 && coord.y == last.y) {
-      landing_site_ = {last, coord};
-      return;
-    }
-    last = coord;
-  }
-  throw std::runtime_error("No landing site found");
 }
 
 individual random_individual(const simulation_data &initial,

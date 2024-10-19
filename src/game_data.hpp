@@ -8,6 +8,7 @@
 #include <SFML/System/Vector2.hpp>
 #include <cmath>
 #include <vector>
+#include <functional>
 
 struct game_data {
   game_data(view_transform transform, simulation::result simu,

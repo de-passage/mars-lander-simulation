@@ -12,9 +12,9 @@
 /// False indicates touchdown or crash
 simulation::tick_data simulation::simulate(const simulation_data &last_data,
                                            decision this_turn,
-                                           const coordinate_list &coordinates) {
+                                           const input_data &input) {
   ZoneScoped;
-  assert(coordinates.size() > 1);
+  ASSERT(input.coords.size() > 1);
   auto wanted_rotation =
       std::min(MAX_ROTATION, std::max(-MAX_ROTATION, this_turn.rotate));
   auto wanted_power = std::min(std::min(last_data.fuel, MAX_POWER),
@@ -37,57 +37,57 @@ simulation::tick_data simulation::simulate(const simulation_data &last_data,
   }
 
   auto next_tick =
-      compute_next_tick(last_data, coordinates, wanted_rotation, wanted_power);
-  assert((next_tick.status == status::crash && next_tick.reason != 0) ||
+      compute_next_tick(last_data, input, wanted_rotation, wanted_power);
+  ASSERT((next_tick.status == status::crash && next_tick.reason != 0) ||
          next_tick.status != status::crash);
   return next_tick;
 }
 
 std::pair<simulation::status, simulation::crash_reason>
-simulation::touchdown(const coordinate_list &coordinates, const coord_t &start,
-                      tick_data &next) {
+simulation::touchdown(const input_data &input, const coord_t &start,
+                      simulation_data &next) {
   ZoneScoped;
-  auto &next_data = next.data;
-  for (size_t i = 0; i < coordinates.size() - 1; ++i) {
-    auto current_segment = segment{(coordinates)[i], (coordinates)[i + 1]};
-    auto inter =
-        intersection(current_segment, segment{start, next_data.position});
+  if (next.position.y > input.y_cutoff) {
+    return {status::none, crash_reason::none};
+  }
+
+  for (size_t i = 0; i < input.coords.size() - 1; ++i) {
+    auto current_segment = segment{(input.coords)[i], (input.coords)[i + 1]};
+    auto inter = intersection(current_segment, segment{start, next.position});
     if (inter) {
       crash_reason reason = crash_reason::none;
 
-      if (std::abs(next_data.velocity.x) > MAX_HORIZONTAL_SPEED) {
-        reason = static_cast<simulation::crash_reason>(
-            reason | crash_reason::h_too_fast);
+      if (std::abs(next.velocity.x) > MAX_HORIZONTAL_SPEED) {
+        reason = static_cast<crash_reason>(reason | crash_reason::h_too_fast);
       }
-      if (std::abs(next_data.velocity.y) > MAX_VERTICAL_SPEED) {
+      if (std::abs(next.velocity.y) > MAX_VERTICAL_SPEED) {
         reason = static_cast<crash_reason>(reason | crash_reason::v_too_fast);
       }
-      if (next_data.rotate != 0) {
-        reason = static_cast<simulation::crash_reason>(reason |
-                                                       crash_reason::rotation);
+      if (next.rotate != 0) {
+        reason = static_cast<crash_reason>(reason | crash_reason::rotation);
       }
 
       if (current_segment.start.y == current_segment.end.y) {
         if (reason != crash_reason::none) {
-          return {simulation::status::crash, reason};
+          return {status::crash, reason};
         }
 
-        next_data.position = *inter;
-        return {simulation::status::land, crash_reason::none};
+        next.position = *inter;
+        return {status::land, crash_reason::none};
       } else {
         reason =
             static_cast<crash_reason>(reason | crash_reason::uneven_ground);
-        return {simulation::status::crash, reason};
+        return {status::crash, reason};
       }
     }
   }
-  return {simulation::status::none, crash_reason::none};
+  return {status::none, crash_reason::none};
 }
 
 simulation::tick_data
 simulation::compute_next_tick(const simulation_data &current,
-                              const coordinate_list &coordinates,
-                              int wanted_rotation, int wanted_power) {
+                              const input_data &input, int wanted_rotation,
+                              int wanted_power) {
   ZoneScoped;
   tick_data next_data;
   next_data.data.power = wanted_power;
@@ -108,7 +108,7 @@ simulation::compute_next_tick(const simulation_data &current,
     next_data.status = status::lost;
     next_data.reason = crash_reason::none;
   } else {
-    auto [status, reason] = touchdown(coordinates, current.position, next_data);
+    auto [status, reason] = touchdown(input, current.position, next_data.data);
     next_data.status = status;
     next_data.reason = reason;
   }

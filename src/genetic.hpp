@@ -31,7 +31,7 @@ struct ga_data {
 
   ga_data(coordinate_list coordinates = {}, simulation_data initial = {})
       : coordinates_{std::move(coordinates)}, initial_{std::move(initial)} {
-    landing_site_ = find_landing_site_();
+    prepare_initial_data_();
   }
 
   void simulate_initial_generation(generation_parameters params);
@@ -40,7 +40,7 @@ struct ga_data {
     std::lock_guard lock{mutex_};
     coordinates_ = std::move(coordinates);
     initial_ = std::move(initial);
-    landing_site_ = find_landing_site_();
+    prepare_initial_data_();
     current_generation_results_.clear();
     current_generation_name_ = 0;
     current_generation_.clear();
@@ -97,15 +97,20 @@ private:
 
   generation_parameters params_;
   generation current_generation_;
-  coordinate_list coordinates_;
-  simulation_data initial_;
   generation_result current_generation_results_;
   mutable generation_result cached_results_;
   unsigned int current_generation_name_{0};
 
-  segment<coordinates> find_landing_site_() const;
+  // Initial data
+  coordinate_list coordinates_;
+  simulation_data initial_;
+  double y_cutoff_;
+  simulation::input_data initial_data_() const;
 
-  static generation_result simulate_(const generation& current_generation, const coordinate_list& coordinates, const simulation_data& initial);
+  void prepare_initial_data_();
+
+  static generation_result simulate_(const generation &current_generation,
+                                     const simulation::input_data &initial);
 
   segment<coordinates> landing_site_{};
 

@@ -9,13 +9,17 @@
 #include <limits>
 #include <mutex>
 
+simulation::input_data ga_data::initial_data_() const {
+  return {
+      .y_cutoff = y_cutoff_, .coords = coordinates_, .initial_data = initial_};
+}
+
 void ga_data::simulate_initial_generation(generation_parameters params) {
   params_ = params;
   current_generation_ =
       random_generation(params.population_size, initial_, landing_site_);
   current_generation_name_ = 1;
-  current_generation_results_ =
-      simulate_(current_generation_, coordinates_, initial_);
+  current_generation_results_ = simulate_(current_generation_, initial_data_());
 }
 
 ga_data::fitness_values
@@ -140,8 +144,8 @@ std::pair<size_t, size_t> selection(const ga_data::fitness_score_list &scores,
       break;
     }
   }
-  assert(p1 != MAX);
-  assert(p2 != MAX);
+  ASSERT(p1 != MAX);
+  ASSERT(p2 != MAX);
   return {p1, p2};
 }
 
@@ -266,13 +270,13 @@ generation next_generation(const generation &this_generation,
         }
       }
     }
-    assert(elite_indices.size() == elites);
+    ASSERT(elite_indices.size() == elites);
     if (elites != 0) {
       scores[0] *= 5;
     }
     DEBUG_ONLY({
       for (int i = 0; i < elite_indices.size() - 1; ++i) {
-        assert(elite_indices[i].first >= elite_indices[i + 1].first);
+        ASSERT(elite_indices[i].first >= elite_indices[i + 1].first);
       }
     });
 
@@ -287,7 +291,7 @@ generation next_generation(const generation &this_generation,
     score = (score - worst_score) / (best_score - worst_score);
     DEBUG_ONLY(auto last = total);
     total += score;
-    assert(total >= last);
+    ASSERT(total >= last);
   }
 
   int crossover_style = 0;
@@ -348,26 +352,29 @@ void ga_data::next_generation() {
   auto new_generation = ::next_generation(
       current_generation_, std::move(scores), params_, landing_site_);
 
-  assert(new_generation.size() == current_generation_.size());
+  ASSERT(new_generation.size() == current_generation_.size());
 
   {
     std::lock_guard lock{mutex_};
     current_generation_ = std::move(new_generation);
   }
   current_generation_name_++;
-  current_generation_results_ =
-      simulate_(current_generation_, coordinates_, initial_);
+
+  current_generation_results_ = simulate_(current_generation_, initial_data_());
 }
 
-segment<coordinates> ga_data::find_landing_site_() const {
+void ga_data::prepare_initial_data_() {
   coordinates last{-1, -1};
+  y_cutoff_ = std::numeric_limits<double>::min();
   for (auto &coord : coordinates_) {
     if (last.x != -1 && coord.y == last.y) {
-      return {last, coord};
+      landing_site_ = {last, coord};
+    }
+    if (coord.y > y_cutoff_) {
+      y_cutoff_ = coord.y;
     }
     last = coord;
   }
-  return {{-1, -1}, {-1, -1}};
 }
 
 std::string to_string(simulation::status status) {
@@ -388,8 +395,7 @@ thread_pool ga_data::tp_{};
 
 ga_data::generation_result
 ga_data::simulate_(const generation &current_generation,
-                   const coordinate_list &coordinates,
-                   const simulation_data &initial) {
+                   const simulation::input_data &input) {
   generation_result results;
   using sim_results = simulation::result;
   std::vector<std::future<sim_results>> futures;
@@ -400,8 +406,8 @@ ga_data::simulate_(const generation &current_generation,
 
   for (const auto &ind : current_generation) {
     std::packaged_task<sim_results()> task(
-        [coordinates, initial, individual = std::move(ind)]() {
-          return simulation::simulate(coordinates, initial, individual);
+        [&input, individual = std::move(ind)]() {
+          return simulation::simulate(input, individual);
         });
 
     futures.push_back(task.get_future());

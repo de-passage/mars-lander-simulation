@@ -49,6 +49,7 @@ struct world_data : sf::Drawable {
   }
 
   void next_generation() {
+    selected_individual.reset();
     ga.next_generation();
   }
 

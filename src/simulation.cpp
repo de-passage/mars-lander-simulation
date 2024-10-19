@@ -50,9 +50,23 @@ simulation::touchdown(const input_data &input, const coord_t &start,
   if (next.position.y > input.y_cutoff) {
     return {status::none, crash_reason::none};
   }
+  coordinates top_left = {std::min(start.x, next.position.x),
+                          std::min(start.y, next.position.y)};
+  coordinates bottom_right = {std::max(start.x, next.position.x),
+                              std::max(start.y, next.position.y)};
 
   for (size_t i = 0; i < input.coords.size() - 1; ++i) {
     auto current_segment = segment{(input.coords)[i], (input.coords)[i + 1]};
+    auto cs_top_left =
+        coordinates{std::min(current_segment.start.x, current_segment.end.x),
+                    std::min(current_segment.start.y, current_segment.end.y)};
+    auto cs_bottom_right =
+        coordinates{std::max(current_segment.start.x, current_segment.end.x),
+                    std::max(current_segment.start.y, current_segment.end.y)};
+    if (cs_bottom_right.x < top_left.x || cs_top_left.x > bottom_right.x ||
+        cs_bottom_right.y < top_left.y || cs_top_left.y > bottom_right.y) {
+      continue;
+    }
     auto inter = intersection(current_segment, segment{start, next.position});
     if (inter) {
       crash_reason reason = crash_reason::none;

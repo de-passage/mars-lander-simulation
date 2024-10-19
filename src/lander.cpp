@@ -1,7 +1,5 @@
 #include "lander.hpp"
-#include "constants.hpp"
 #include "coordinates_utils.hpp"
-#include <iostream>
 
 lander::lander(const simulation_data &current, view_transform transform)
     : transform_{transform} {

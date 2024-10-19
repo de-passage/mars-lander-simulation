@@ -2,13 +2,13 @@
 #include "config.hpp"
 #include "constants.hpp"
 #include "game_data.hpp"
+#include "genetic.hpp"
 #include "lander.hpp"
 #include "load_file.hpp"
 #include "world.hpp"
 
 #include <array>
 #include <imgui.h>
-#include <iostream>
 #include <string_view>
 
 void draw_file_selection(world_data &world) {
@@ -127,8 +127,7 @@ std::string crash_reason_to_string(simulation::crash_reason reason) {
   return result;
 }
 
-void draw_history(const simulation::result &simu,
-                  world_data &world) {
+void draw_history(const simulation::result &simu, world_data &world) {
   if (ImGui::Begin("Command History", nullptr,
                    ImGuiWindowFlags_HorizontalScrollbar)) {
 

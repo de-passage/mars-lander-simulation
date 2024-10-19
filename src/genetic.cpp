@@ -1,14 +1,13 @@
 #include "genetic.hpp"
+#include "constants.hpp"
 #include "individual.hpp"
 #include "math.hpp"
 #include "random.hpp"
 #include "utility.hpp"
 
 #include <future>
-#include <iostream>
 #include <limits>
 #include <mutex>
-#include <thread>
 
 void ga_data::simulate_initial_generation(generation_parameters params) {
   params_ = params;
@@ -392,33 +391,25 @@ ga_data::simulate_(const generation &current_generation,
                    const coordinate_list &coordinates,
                    const simulation_data &initial) {
   generation_result results;
-  using sim_results = std::vector<simulation::result>;
+  using sim_results = simulation::result;
   std::vector<std::future<sim_results>> futures;
 
   auto size = current_generation.size();
   results.reserve(size);
   futures.reserve(size);
-  std::vector<std::thread> threads;
-  threads.reserve(size);
 
   for (const auto &ind : current_generation) {
-    std::vector<individual> individuals;
-    individuals.push_back(ind);
-    std::packaged_task<sim_results()> task([coordinates, initial, individuals = std::move(individuals)]() {
-      sim_results results;
-      results.emplace_back(simulation::simulate(coordinates, initial, individuals[0]));
-      return results;
-    });
+    std::packaged_task<sim_results()> task(
+        [coordinates, initial, individual = std::move(ind)]() {
+          return simulation::simulate(coordinates, initial, individual);
+        });
 
     futures.push_back(task.get_future());
-    threads.push_back(std::thread(std::move(task)));
+    tp_.push(std::move(task));
   }
 
-  for (auto &thread : threads) {
-    thread.join();
-  }
   for (auto &future : futures) {
-    results.push_back(future.get()[0]);
+    results.push_back(future.get());
   }
 
   return results;

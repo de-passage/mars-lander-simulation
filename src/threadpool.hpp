@@ -3,14 +3,16 @@
 #include <cassert>
 #include <condition_variable>
 #include <functional>
-#include <iostream>
+#include <future>
 #include <mutex>
 #include <queue>
 #include <thread>
 #include <vector>
 
+#include "simulation.hpp"
+
 struct thread_pool {
-  using task = std::function<void()>;
+  using task = std::packaged_task<simulation::result()>;
 
   thread_pool(size_t threads = std::thread::hardware_concurrency())
       : threads_{} {
@@ -46,7 +48,7 @@ struct thread_pool {
   }
 
   template <class T>
-  requires std::convertible_to<T, task>
+  requires std::convertible_to<std::decay_t<T>, task>
   void push(T &&t) {
     std::lock_guard lock{mutex_};
     tasks_.emplace(std::forward<T>(t));

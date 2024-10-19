@@ -1,6 +1,5 @@
 #pragma once
 
-#include "genetic.hpp"
 #include "simulation.hpp"
 #include "simulation_data.hpp"
 #include "view_transform.hpp"
@@ -8,8 +7,6 @@
 #include <SFML/Graphics/VertexArray.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <cmath>
-#include <filesystem>
-#include <optional>
 #include <vector>
 
 struct game_data {

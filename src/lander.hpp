@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game_data.hpp"
+#include "simulation_data.hpp"
 #include "view_transform.hpp"
 #include <SFML/Graphics.hpp>
 #include <SFML/System/Vector2.hpp>

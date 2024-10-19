@@ -1,17 +1,12 @@
 #pragma once
 
-#include "constants.hpp"
 #include "individual.hpp"
-#include "play.hpp"
 #include "simulation.hpp"
 #include "simulation_data.hpp"
 #include "threadpool.hpp"
-#include "tracy_shim.hpp"
 
-#include <array>
 #include <atomic>
 #include <mutex>
-#include <random>
 #include <vector>
 
 struct ga_data {
@@ -21,17 +16,17 @@ struct ga_data {
   using fitness_score_list = std::vector<fitness_score>;
 
   struct generation_parameters {
-    float mutation_rate{.01};
-    float elitism_rate{.1};
+    float mutation_rate{.02};
+    float elitism_rate{.14};
     unsigned int population_size{100};
 
     float fuel_weight = .01;
-    float vertical_speed_weight = .4;
-    float horizontal_speed_weight = .4;
+    float vertical_speed_weight = 1.;
+    float horizontal_speed_weight = .98;
     float distance_weight = 1.;
-    float rotation_weight = 1.;
-    float elite_multiplier = 1.5;
-    float stdev_threshold = 1;
+    float rotation_weight = .1;
+    float elite_multiplier = 5.;
+    float stdev_threshold = .1;
   };
 
   ga_data(coordinate_list coordinates = {}, simulation_data initial = {})

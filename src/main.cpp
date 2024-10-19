@@ -1,10 +1,6 @@
 #include "config.hpp"
-#include "coordinates_utils.hpp"
-#include "game_data.hpp"
 #include "gui.hpp"
-#include "lander.hpp"
 #include "load_file.hpp"
-#include "trajectory.hpp"
 #include "world.hpp"
 #include "tracy_shim.hpp"
 
@@ -15,7 +11,6 @@
 #include <filesystem>
 #include <iostream>
 #include <optional>
-#include <random>
 #include <thread>
 
 void handle_events(sf::RenderWindow &window, const sf::Event &event,

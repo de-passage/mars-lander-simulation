@@ -1,8 +1,5 @@
 #include "game_data.hpp"
-#include "constants.hpp"
 #include "coordinates_utils.hpp"
-#include "load_file.hpp"
-#include "play.hpp"
 #include <imgui.h>
 
 void game_data::reset_simulation() { set_history_point(0); }
@@ -41,6 +38,3 @@ bool game_data::play() {
   status_ = status::running;
   return true;
 }
-
-
-

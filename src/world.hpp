@@ -2,9 +2,9 @@
 
 #include "config.hpp"
 #include "game_data.hpp"
+#include "genetic.hpp"
 #include "lander.hpp"
 #include "load_file.hpp"
-#include "trajectory.hpp"
 #include <SFML/Graphics/Drawable.hpp>
 #include <atomic>
 

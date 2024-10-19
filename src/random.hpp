@@ -8,7 +8,11 @@
 struct random_float {
 
   random_float() {
+#ifdef FIXED_SEED
+    //srand(0);
+#else
     srand(time(nullptr));
+#endif
   }
 
   std::random_device rd;

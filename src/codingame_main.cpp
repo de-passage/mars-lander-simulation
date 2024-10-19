@@ -89,7 +89,7 @@ int main() {
       start = now;
       total += dur;
       auto avg = total / ga.current_generation_name();
-      if (total >= (100ms - avg)) {
+      if (total >= (200ms - avg)) {
         std::cerr << "Premature return because too slow, processed "
           << ga.current_generation_name() << " generations\n";
         return best_idx;

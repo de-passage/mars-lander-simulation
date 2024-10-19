@@ -16,17 +16,18 @@ struct individual {
     }
   };
 
-  individual(const segment<coordinates> &landing_site)
-      : landing_site_{landing_site} {}
+  individual(const segment<coordinates> &landing_site): landing_site_(landing_site) {
+  }
 
-  individual(const individual &other)
-      : genes{other.genes}, landing_site_{other.landing_site_} {}
-  individual(individual &other)
-      : genes{std::move(other.genes)}, landing_site_{std::move(
-                                           other.landing_site_)} {}
+  individual(const individual &other) = default;
+  individual(individual &&other) = default;
+
+  individual &operator=(individual &&other) = default;
+  individual &operator=(const individual &other) = default;
 
   decision operator()(const simulation_data &data,
-                      const std::vector<coordinates> &ground_line, int current_frame) const;
+                      const std::vector<coordinates> &ground_line,
+                      int current_frame) const;
 
   void find_landing_site_(const std::vector<coordinates> &ground_line);
 

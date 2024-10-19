@@ -4,11 +4,11 @@
 #include "random.hpp"
 #include "utility.hpp"
 
+#include <future>
 #include <iostream>
 #include <limits>
 #include <mutex>
 #include <thread>
-#include <future>
 
 void ga_data::simulate_initial_generation(generation_parameters params) {
   params_ = params;
@@ -392,7 +392,8 @@ ga_data::simulate_(const generation &current_generation,
                    const coordinate_list &coordinates,
                    const simulation_data &initial) {
   generation_result results;
-  std::vector<std::future<simulation::result>> futures;
+  using sim_results = std::vector<simulation::result>;
+  std::vector<std::future<sim_results>> futures;
 
   auto size = current_generation.size();
   results.reserve(size);
@@ -401,20 +402,23 @@ ga_data::simulate_(const generation &current_generation,
   threads.reserve(size);
 
   for (const auto &ind : current_generation) {
-    std::packaged_task<simulation::result()> task(
-        [coordinates, initial, ind] {
-          return simulation::simulate(coordinates, initial, ind);
-        });
+    std::vector<individual> individuals;
+    individuals.push_back(ind);
+    std::packaged_task<sim_results()> task([coordinates, initial, individuals = std::move(individuals)]() {
+      sim_results results;
+      results.emplace_back(simulation::simulate(coordinates, initial, individuals[0]));
+      return results;
+    });
 
     futures.push_back(task.get_future());
     threads.push_back(std::thread(std::move(task)));
   }
 
-  for (auto &future : futures) {
-    results.push_back(future.get());
-  }
   for (auto &thread : threads) {
     thread.join();
+  }
+  for (auto &future : futures) {
+    results.push_back(future.get()[0]);
   }
 
   return results;

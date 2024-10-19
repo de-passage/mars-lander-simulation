@@ -45,14 +45,23 @@ struct simulation {
     simulation::status final_status;
     crash_reason reason;
 
+    result() = default;
+    result(const result &other)
+        : history(other.history), decisions(other.decisions),
+          final_status(other.final_status), reason(other.reason) {}
+    result(result &&other)
+        : history(std::move(other.history)),
+          decisions(std::move(other.decisions)),
+          final_status(std::move(other.final_status)),
+          reason(std::move(other.reason)) {}
+
     [[nodiscard]] inline bool success() const {
       return final_status == simulation::status::land;
     }
   };
 
   static result simulate(const coordinate_list &coordinates,
-                                    simulation_data data,
-                                    DecisionProcess auto &&process);
+                         simulation_data data, DecisionProcess auto &&process);
 
   static tick_data simulate(const simulation_data &last_data,
                             decision this_turn,
@@ -68,9 +77,9 @@ struct simulation {
             tick_data &next);
 };
 
-simulation::result
-simulation::simulate(const coordinate_list &coordinates,
-                     simulation_data new_data, DecisionProcess auto &&process) {
+simulation::result simulation::simulate(const coordinate_list &coordinates,
+                                        simulation_data new_data,
+                                        DecisionProcess auto &&process) {
   std::vector<simulation_data> history;
   std::vector<decision> decision_history;
 
@@ -98,8 +107,10 @@ simulation::simulate(const coordinate_list &coordinates,
 
   assert(history.size() >= 1);
 
-  return result{.history = std::move(history),
-                           .decisions = std::move(decision_history),
-                           .final_status = st,
-                           .reason = reason};
+  result r;
+  r.history = std::move(history);
+  r.decisions = std::move(decision_history);
+  r.final_status = st;
+  r.reason = reason;
+  return r;
 }

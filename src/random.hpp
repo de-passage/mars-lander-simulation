@@ -2,11 +2,14 @@
 #include "tracy_shim.hpp"
 
 #include <cstdlib>
+#include <ctime>
 #include <random>
 
 struct random_float {
 
-  random_float() = default;
+  random_float() {
+    srand(time(nullptr));
+  }
 
   std::random_device rd;
   std::mt19937 gen{rd()};

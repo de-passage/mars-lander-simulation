@@ -442,7 +442,7 @@ void draw_ga_control(world_data &world) {
     world.keep_running_after_max_generation = kramg;
 
     if (world.has_values()) {
-      int individual_max_index = world.current_generation_results().size() - 1;
+      int individual_max_index = world.generation_size() - 1;
       draw_generation_controls(world);
 
       if (world.generated()) {
@@ -456,6 +456,10 @@ void draw_ga_control(world_data &world) {
 
       bool show_individual = world.selected_individual.has_value();
       ImGui::Checkbox("Show individual", &show_individual);
+      ImGui::SameLine();
+      if (ImGui::Button("Sort")) {
+        world.sort_generation_results();
+      }
 
       int selection =
           world.selected_individual ? *world.selected_individual : 0;

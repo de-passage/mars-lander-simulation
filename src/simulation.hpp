@@ -54,16 +54,34 @@ struct simulation {
     result(const result &other)
         : history(other.history), decisions(other.decisions),
           final_status(other.final_status), reason(other.reason) {}
-    result(result &&other)
+    result(result &&other) noexcept
         : history(std::move(other.history)),
           decisions(std::move(other.decisions)),
           final_status(std::move(other.final_status)),
           reason(std::move(other.reason)) {}
 
+    result& operator=(const result &other) {
+      history = other.history;
+      decisions = other.decisions;
+      final_status = other.final_status;
+      reason = other.reason;
+      return *this;
+    }
+
+    result& operator=(result &&other) noexcept {
+      history = std::move(other.history);
+      decisions = std::move(other.decisions);
+      final_status = std::move(other.final_status);
+      reason = std::move(other.reason);
+      return *this;
+    }
+
     [[nodiscard]] inline bool success() const {
       return final_status == simulation::status::land;
     }
   };
+  static_assert(std::is_move_constructible_v<result>);
+  static_assert(std::is_move_assignable_v<result>);
 
   static result simulate(const input_data &coordinates,
                          DecisionProcess auto &&process);

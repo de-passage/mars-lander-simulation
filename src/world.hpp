@@ -33,6 +33,7 @@ struct world_data : sf::Drawable {
     reset_individual_selection_();
   }
   void pause_generation() { generating_ = false; }
+  void sort_generation_results() { ga.sort_generation_results(); }
 
   bool generating() const { return generating_; }
   bool generated() const { return has_values() && !generating_; }
@@ -47,6 +48,8 @@ struct world_data : sf::Drawable {
   ga_data::generation_result current_generation_results() const {
     return ga.current_generation_results();
   }
+
+  size_t generation_size() const { return ga.generation_size(); }
 
   void next_generation() {
     selected_individual.reset();

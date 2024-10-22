@@ -51,6 +51,19 @@ struct ga_data {
     return current_generation_results_;
   }
 
+  size_t generation_size() const {
+    std::lock_guard lock{mutex_};
+    return current_generation_.size();
+  }
+
+  void sort_generation_results() {
+    std::lock_guard lock{mutex_};
+    std::sort(current_generation_results_.begin(), current_generation_results_.end(),
+              [this](simulation::result &a, simulation::result &b) {
+                return compute_fitness_values(a, params_,landing_site_).score > compute_fitness_values(b, params_,landing_site_).score;
+              });
+  }
+
   bool generated() const {
     std::lock_guard lock{mutex_};
     return !current_generation_results_.empty();

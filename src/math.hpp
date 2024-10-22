@@ -80,10 +80,10 @@ template <Coordinates T, typename U>
 requires std::is_same_v<coordinates_type<T>, coordinates_type<U>>
 constexpr coordinates_type<T> distance_squared_to_segment(const segment<U> &s,
                                                           T &&p) {
-  auto l2 = distance(s);
+  auto l2 = distance_squared(s);
 
   if (l2 == 0)
-    return distance(s.start, p);
+    return distance_squared(s.start, p);
 
   auto t = ((p.x - s.start.x) * (s.end.x - s.start.x) +
             (p.y - s.start.y) * (s.end.y - s.start.y)) /

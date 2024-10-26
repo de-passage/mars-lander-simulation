@@ -31,7 +31,20 @@ ga_data::compute_fitness_values(const simulation::result &result,
   const auto square = [](auto x) { return x * x; };
   const fitness_score epsilon = std::numeric_limits<fitness_score>::epsilon();
 
-  fitness_values values;
+  fitness_values values{
+      .score = 0.,
+      .fuel_score = 0.,
+      .vertical_speed_score = 0.,
+      .horizontal_speed_score = 0.,
+      .dist_score = 0.,
+      .rotation_score = 0.,
+      .weighted_fuel_score = 0.,
+      .weighted_vertical_speed_score = 0.,
+      .weighted_horizontal_speed_score = 0.,
+      .weighted_dist_score = 0.,
+      .weighted_rotation_score = 0.,
+      .distance = 0.,
+  };
 
   fitness_score remaining_fuel = last.fuel;
   coordinates position = last.position;
@@ -42,78 +55,30 @@ ga_data::compute_fitness_values(const simulation::result &result,
       (double)distance(coordinates{0, 0}, coordinates{GAME_WIDTH, GAME_HEIGHT});
 
   values.distance = distance_to_segment(landing_site, position);
-  if (segments_intersect(landing_site, {position_before_last, position})) {
-    values.distance = 0;
-  } else if (position.y == landing_site.start.y &&
-             position.x >= landing_site.start.x &&
-             position.x <= landing_site.end.x) {
-    values.distance = 0;
-  }
   values.dist_score =
-      1. - normalize(values.distance, 0., MAX_ABSOLUTE_DISTANCE);
+      std::clamp(MAX_ABSOLUTE_DISTANCE - values.distance, 0.,
+               MAX_ABSOLUTE_DISTANCE);
 
-  values.weighted_dist_score = values.dist_score * params.distance_weight;
-
-  const fitness_score importance_of_distance = square(values.dist_score);
-
-  values.rotation_score =
-      1. - normalize(static_cast<fitness_score>(std::abs(last.rotate)), 0.,
-                     (double)MAX_ROTATION);
-  if (values.distance > std::numeric_limits<double>::epsilon()) {
-    values.weighted_rotation_score = 0;
-  } else {
-    values.weighted_rotation_score =
-        values.rotation_score * params.rotation_weight * importance_of_distance;
-  }
-
-  const fitness_score importance_of_rotation = square(values.rotation_score);
-
-  constexpr double MAX_ABSOLUTE_SPEED = 200.;
-
-  if (std::abs(last.velocity.y) <= MAX_VERTICAL_SPEED) {
-    values.vertical_speed_score = 1.;
-  } else {
-    const fitness_score vspeed_rel_to_max =
-        std::max(0., std::abs(last.velocity.y) - MAX_VERTICAL_SPEED);
+  if (values.distance < epsilon) {
     values.vertical_speed_score =
-        1. - normalize(vspeed_rel_to_max, 0., MAX_ABSOLUTE_SPEED);
-  }
-  if (values.distance > std::numeric_limits<double>::epsilon() ||
-      last.rotate != 0) {
-    values.weighted_vertical_speed_score = 0;
-  } else {
-    values.weighted_vertical_speed_score =
-        square(values.vertical_speed_score) * params.vertical_speed_weight;
-  }
-
-  if (std::abs(last.velocity.x) <= MAX_HORIZONTAL_SPEED) {
-    values.horizontal_speed_score = 1.;
-  } else {
-    const fitness_score hspeed_rel_to_max =
-        std::max(0., std::abs(last.velocity.x) - MAX_HORIZONTAL_SPEED);
+        std::clamp(100. - std::abs(last.velocity.y), 0., 100.);
     values.horizontal_speed_score =
-        1. - normalize(hspeed_rel_to_max, 0., MAX_ABSOLUTE_SPEED);
-  }
-  if (values.distance > std::numeric_limits<double>::epsilon() ||
-      last.rotate != 0) {
-    values.weighted_horizontal_speed_score = 0;
-  } else {
-    values.weighted_horizontal_speed_score =
-        square(values.horizontal_speed_score) * params.horizontal_speed_weight;
+        std::clamp(100. - std::abs(last.velocity.x), 0., 100.);
   }
 
-  values.fuel_score = remaining_fuel;
-
-  if (result.final_status != simulation::status::land) {
-    values.weighted_fuel_score = 0;
-  } else {
-    values.weighted_fuel_score = values.fuel_score * params.fuel_weight;
+  if (values.vertical_speed_score + values.horizontal_speed_score > epsilon) {
+    values.rotation_score =
+        std::clamp(90. - std::abs(last.rotate), 0., 90.);
   }
 
-  values.score = values.weighted_fuel_score + values.weighted_dist_score +
-                 values.weighted_vertical_speed_score +
-                 values.weighted_horizontal_speed_score +
-                 values.weighted_rotation_score;
+  if (result.final_status == simulation::status::land) {
+    values.fuel_score = remaining_fuel;
+  }
+
+
+  values.score = values.dist_score / 1000. + values.vertical_speed_score +
+                 values.horizontal_speed_score + values.rotation_score +
+                 values.fuel_score;
   return values;
 }
 
@@ -201,10 +166,10 @@ void mutate(individual &p, const ga_data::generation_parameters &params,
             double stdev) {
   ZoneScoped;
   auto mutation_rate = params.mutation_rate;
-  auto threshold = params.stdev_threshold;
+  /* auto threshold = params.stdev_threshold;
   if (stdev < threshold) {
     mutation_rate = params.mutation_rate * (threshold - stdev + 1) * 100;
-  }
+  } */
 
   for (auto &gene : p.genes) {
     auto r = randf();
@@ -271,9 +236,9 @@ generation next_generation(const generation &this_generation,
       }
     }
     ASSERT(elite_indices.size() == elites);
-    if (elites != 0) {
+    /* if (elites != 0) {
       scores[0] *= 5;
-    }
+    } */
     DEBUG_ONLY({
       for (int i = 0; i < elite_indices.size() - 1; ++i) {
         ASSERT(elite_indices[i].first >= elite_indices[i + 1].first);

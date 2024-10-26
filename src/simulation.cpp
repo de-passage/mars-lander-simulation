@@ -84,12 +84,12 @@ simulation::touchdown(const input_data &input, const coord_t &start,
         reason = static_cast<crash_reason>(reason | crash_reason::rotation);
       }
 
+      next.position = *inter;
       if (current_segment.start.y == current_segment.end.y) {
         if (reason != crash_reason::none) {
           return {status::crash, reason};
         }
 
-        next.position = *inter;
         return {status::land, crash_reason::none};
       } else {
         reason =

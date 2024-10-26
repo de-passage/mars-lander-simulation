@@ -40,7 +40,7 @@ void lander::update(const coordinates &position, float rotation) {
   lander_bottom_.setPosition(screen_position);
   thrust_marker_.setPosition(screen_position);
 
-  current_rotation_ = rotation;
+  current_rotation_ = -rotation;
   lander_triangle_.setRotation(current_rotation_);
   lander_bottom_.setRotation(current_rotation_);
   thrust_marker_.setRotation(current_rotation_);

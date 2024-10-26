@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <concepts>
 #include <optional>
@@ -76,14 +77,71 @@ constexpr auto distance(T &&p1, U &&p2) {
   return std::sqrt(distance_squared(std::forward<T>(p1), std::forward<U>(p2)));
 }
 
+template<Coordinates T>
+constexpr coordinates_type<T> dot(const T &s1, const T& s2) {
+  return s1.x * s2.x + s1.y * s2.y;
+}
+
+template<Coordinates T> requires requires (T s1, T s2) {
+  { s1 - s2 } -> std::same_as<T>;
+}
+constexpr T sub(const T &s1, const T& s2) {
+  return s1 - s2;
+}
+template<Coordinates T> requires (!requires (T s1, T s2) {
+  { s1 - s2 } -> std::same_as<T>;
+})
+constexpr T sub(const T &s1, const T& s2) {
+  return {s1.x - s2.x, s1.y - s2.y};
+}
+
+template<Coordinates T> requires requires (T s1, T s2) {
+  { s1 + s2 } -> std::same_as<T>;
+}
+constexpr T add(const T &s1, const T& s2) {
+  return s1 + s2;
+}
+template<Coordinates T> requires (!requires (T s1, T s2) {
+  { s1 + s2 } -> std::same_as<T>;
+})
+constexpr T add(const T &s1, const T& s2) {
+  return {s1.x + s2.x, s1.y + s2.y};
+}
+
 template <Coordinates T, typename U>
 requires std::is_same_v<coordinates_type<T>, coordinates_type<U>>
 constexpr coordinates_type<T> distance_squared_to_segment(const segment<U> &s,
                                                           T &&p) {
   auto l2 = distance_squared(s);
+  auto d = dot(sub(p, s.start), sub(s.end, s.start));
+  auto t = d / l2;
+  if (l2 == 0)
+    return t;
+
+  t = std::clamp(t, static_cast<decltype(t)>(0), static_cast<decltype(t)>(1));
+
+  U projection;
+  projection.x = s.start.x + t * (s.end.x - s.start.x);
+  projection.y = s.start.y + t * (s.end.y - s.start.y);
+
+  if (t < 0) {
+
+  } else if (t > 1) {
+
+  } else  {
+    projection.x = s.start.x + t * (s.end.x - s.start.x);
+    projection.y = s.start.y + t * (s.end.y - s.start.y);
+  }
+  return distance_squared(p, projection);
+}
+
+template<Coordinates T, typename U>
+requires std::is_same_v<coordinates_type<T>, coordinates_type<U>>
+constexpr T project(const segment<U>& s, T&& p) {
+  auto l2 = distance_squared(s);
 
   if (l2 == 0)
-    return distance_squared(s.start, p);
+    return p;
 
   auto t = ((p.x - s.start.x) * (s.end.x - s.start.x) +
             (p.y - s.start.y) * (s.end.y - s.start.y)) /
@@ -93,7 +151,7 @@ constexpr coordinates_type<T> distance_squared_to_segment(const segment<U> &s,
   U projection;
   projection.x = s.start.x + t * (s.end.x - s.start.x);
   projection.y = s.start.y + t * (s.end.y - s.start.y);
-  return distance_squared(p, projection);
+  return projection;
 }
 
 template <Coordinates T, typename U>

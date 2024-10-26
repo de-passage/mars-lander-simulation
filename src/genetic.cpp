@@ -55,9 +55,8 @@ ga_data::compute_fitness_values(const simulation::result &result,
       (double)distance(coordinates{0, 0}, coordinates{GAME_WIDTH, GAME_HEIGHT});
 
   values.distance = distance_to_segment(landing_site, position);
-  values.dist_score =
-      std::clamp(MAX_ABSOLUTE_DISTANCE - values.distance, 0.,
-               MAX_ABSOLUTE_DISTANCE);
+  values.dist_score = std::clamp(MAX_ABSOLUTE_DISTANCE - values.distance, 0.,
+                                 MAX_ABSOLUTE_DISTANCE);
 
   if (values.distance < epsilon) {
     values.vertical_speed_score =
@@ -66,15 +65,13 @@ ga_data::compute_fitness_values(const simulation::result &result,
         std::clamp(100. - std::abs(last.velocity.x), 0., 100.);
   }
 
-  if (values.vertical_speed_score + values.horizontal_speed_score > epsilon) {
-    values.rotation_score =
-        std::clamp(90. - std::abs(last.rotate), 0., 90.);
+  if (result.final_status == simulation::status::crash_on_landing_area) {
+    values.rotation_score = std::clamp(90. - std::abs(last.rotate), 0., 90.);
   }
 
   if (result.final_status == simulation::status::land) {
     values.fuel_score = remaining_fuel;
   }
-
 
   values.score = values.dist_score / 1000. + values.vertical_speed_score +
                  values.horizontal_speed_score + values.rotation_score +
@@ -166,11 +163,7 @@ void mutate(individual &p, const ga_data::generation_parameters &params,
             double stdev) {
   ZoneScoped;
   auto mutation_rate = params.mutation_rate;
-  /* auto threshold = params.stdev_threshold;
-  if (stdev < threshold) {
-    mutation_rate = params.mutation_rate * (threshold - stdev + 1) * 100;
-  } */
-
+  auto threshold = params.stdev_threshold;
   for (auto &gene : p.genes) {
     auto r = randf();
     if (randf() < mutation_rate) {
@@ -182,10 +175,12 @@ void mutate(individual &p, const ga_data::generation_parameters &params,
   }
 }
 
-generation next_generation(const generation &this_generation,
-                           ga_data::fitness_score_list scores,
-                           const ga_data::generation_parameters &params,
-                           const segment<coordinates> &landing_site) {
+generation next_generation(
+    const generation &this_generation,
+    const std::vector<simulation::result> &current_generation_results,
+    ga_data::fitness_score_list scores,
+    const ga_data::generation_parameters &params,
+    const segment<coordinates> &landing_site) {
   using fitness_score = ga_data::fitness_score;
 
   generation new_generation;
@@ -235,15 +230,36 @@ generation next_generation(const generation &this_generation,
         }
       }
     }
+
+    int landed = 0;
+    int crashed_on_landing_area = 0;
+    for (size_t i = 0; i < elite_indices.size(); ++i) {
+      if (current_generation_results[elite_indices[i].second].final_status ==
+          simulation::status::land) {
+        landed++;
+      } else if (current_generation_results[elite_indices[i].second]
+                     .final_status ==
+                 simulation::status::crash_on_landing_area) {
+        crashed_on_landing_area++;
+      }
+    }
+    if (landed > 0) {
+      for (size_t i = landed; i < elite_indices.size(); ++i) {
+        elite_indices[i] = elite_indices[(i - landed) % landed];
+      }
+    } else if (crashed_on_landing_area > 0) {
+      for (size_t i = crashed_on_landing_area; i < elite_indices.size(); ++i) {
+        elite_indices[i] = elite_indices[(i - crashed_on_landing_area) %
+                                         crashed_on_landing_area];
+      }
+    }
+
     ASSERT(elite_indices.size() == elites);
-    /* if (elites != 0) {
-      scores[0] *= 5;
-    } */
-    DEBUG_ONLY({
+    /* DEBUG_ONLY({
       for (int i = 0; i < elite_indices.size() - 1; ++i) {
         ASSERT(elite_indices[i].first >= elite_indices[i + 1].first);
       }
-    });
+    }); */
 
     for (size_t i = 0; i < elites; ++i) {
       new_generation.push_back(this_generation[elite_indices[i].second]);
@@ -314,8 +330,9 @@ void ga_data::next_generation() {
         compute_fitness_values(result, params_, landing_site_).score);
   }
 
-  auto new_generation = ::next_generation(
-      current_generation_, std::move(scores), params_, landing_site_);
+  auto new_generation =
+      ::next_generation(current_generation_, current_generation_results_,
+                        std::move(scores), params_, landing_site_);
 
   ASSERT(new_generation.size() == current_generation_.size());
 
@@ -340,20 +357,6 @@ void ga_data::prepare_initial_data_() {
     }
     last = coord;
   }
-}
-
-std::string to_string(simulation::status status) {
-  switch (status) {
-  case simulation::status::none:
-    return "none";
-  case simulation::status::land:
-    return "land";
-  case simulation::status::crash:
-    return "crash";
-  case simulation::status::lost:
-    return "lost";
-  }
-  return "unknown";
 }
 
 thread_pool ga_data::tp_{};

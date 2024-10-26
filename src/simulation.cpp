@@ -87,7 +87,7 @@ simulation::touchdown(const input_data &input, const coord_t &start,
       next.position = *inter;
       if (current_segment.start.y == current_segment.end.y) {
         if (reason != crash_reason::none) {
-          return {status::crash, reason};
+          return {status::crash_on_landing_area, reason};
         }
 
         return {status::land, crash_reason::none};

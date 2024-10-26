@@ -41,6 +41,8 @@ std::string_view to_string(enum simulation::status status) {
     return "None";
   case simulation::status::land:
     return "Landed";
+  case simulation::status::crash_on_landing_area:
+    [[fallthrough]];
   case simulation::status::crash:
     return "Crashed";
   case simulation::status::lost:
@@ -132,7 +134,8 @@ void draw_history(const simulation::result &simu, world_data &world) {
                    ImGuiWindowFlags_HorizontalScrollbar)) {
 
     ImGui::Text("Simulation result: %s", to_string(simu.final_status).data());
-    if (simu.final_status == simulation::status::crash) {
+    if (simu.final_status == simulation::status::crash ||
+        simu.final_status == simulation::status::crash_on_landing_area) {
       ImGui::Text("Crash reason: %s",
                   crash_reason_to_string(simu.reason).data());
     } else {

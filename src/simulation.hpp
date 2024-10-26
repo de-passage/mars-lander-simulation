@@ -20,7 +20,7 @@ struct simulation {
   constexpr simulation(simulation &&) = delete;
   constexpr simulation &operator=(const simulation &) = delete;
   constexpr simulation &operator=(simulation &&) = delete;
-  enum class status { none, land, crash, lost };
+  enum class status { none, land, crash, crash_on_landing_area, lost };
 
   enum crash_reason {
     none = 0,

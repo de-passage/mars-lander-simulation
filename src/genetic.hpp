@@ -97,6 +97,8 @@ struct ga_data {
     double weighted_rotation_score;
 
     double distance;
+    double distance_x;
+    double distance_y;
   };
 
   static fitness_values

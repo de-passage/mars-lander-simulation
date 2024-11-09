@@ -44,6 +44,8 @@ ga_data::compute_fitness_values(const simulation::result &result,
       .weighted_dist_score = 0.,
       .weighted_rotation_score = 0.,
       .distance = 0.,
+      .distance_x = 0.,
+      .distance_y = 0.,
   };
 
   fitness_score remaining_fuel = last.fuel;
@@ -54,9 +56,18 @@ ga_data::compute_fitness_values(const simulation::result &result,
   const double MAX_ABSOLUTE_DISTANCE =
       (double)distance(coordinates{0, 0}, coordinates{GAME_WIDTH, GAME_HEIGHT});
 
+  values.distance_x =
+      position.x < landing_site.start.x ? landing_site.start.x - position.x
+      : position.x > landing_site.end.x ? position.x - landing_site.end.x
+                                        : 0;
+  values.distance_y =
+      position.x < landing_site.start.x ? landing_site.start.x - position.x
+      : position.x > landing_site.end.x ? position.x - landing_site.end.x
+                                        : 0;
   values.distance = distance_to_segment(landing_site, position);
-  values.dist_score = std::clamp(MAX_ABSOLUTE_DISTANCE - values.distance, 0.,
-                                 MAX_ABSOLUTE_DISTANCE);
+
+  values.dist_score =
+      GAME_WIDTH - values.distance_x;// + (GAME_HEIGHT - values.distance_y) / 100;
 
   if (values.distance < epsilon) {
     values.vertical_speed_score =
@@ -73,7 +84,7 @@ ga_data::compute_fitness_values(const simulation::result &result,
     values.fuel_score = remaining_fuel;
   }
 
-  values.score = values.dist_score / 1000. + values.vertical_speed_score +
+  values.score = values.dist_score + values.vertical_speed_score +
                  values.horizontal_speed_score + values.rotation_score +
                  values.fuel_score;
   return values;

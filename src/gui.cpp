@@ -368,28 +368,30 @@ void draw_generation_controls(world_data &world) {
 
 void draw_fitness_values(const ga_data::fitness_values &values) {
   ImGui::Text("Fitness values");
-  ImGui::Text("Score: %.2f", values.score * 100);
+  ImGui::Text("Score: %.2f", values.score);
   ImGui::Spacing();
 
   ImGui::Columns(2);
 
   ImGui::Text("Raw values");
-  ImGui::Text("Fuel: %.2f", values.fuel_score * 100);
-  ImGui::Text("Vertical speed: %.2f", values.vertical_speed_score * 100);
-  ImGui::Text("Horizontal speed: %.2f", values.horizontal_speed_score * 100);
-  ImGui::Text("Distance: %.2f", values.dist_score * 100);
-  ImGui::Text("Rotation: %.2f", values.rotation_score * 100);
+  ImGui::Text("Fuel: %.2f", values.fuel_score);
+  ImGui::Text("X Distance: %.2f", values.distance_x);
+  ImGui::Text("Y Distance: %.2f", values.distance_y);
+  ImGui::Text("Vertical speed: %.2f", values.vertical_speed_score);
+  ImGui::Text("Horizontal speed: %.2f", values.horizontal_speed_score);
+  ImGui::Text("Distance: %.2f", values.dist_score);
+  ImGui::Text("Rotation: %.2f", values.rotation_score);
 
   ImGui::NextColumn();
 
   ImGui::Text("Weighted values");
-  ImGui::Text("Fuel: %.2f", values.weighted_fuel_score * 100);
+  ImGui::Text("Fuel: %.2f", values.weighted_fuel_score);
   ImGui::Text("Vertical speed: %.2f",
-              values.weighted_vertical_speed_score * 100);
+              values.weighted_vertical_speed_score);
   ImGui::Text("Horizontal speed: %.2f",
-              values.weighted_horizontal_speed_score * 100);
-  ImGui::Text("Distance: %.2f", values.weighted_dist_score * 100);
-  ImGui::Text("Rotation: %.2f", values.weighted_rotation_score * 100);
+              values.weighted_horizontal_speed_score);
+  ImGui::Text("Distance: %.2f", values.weighted_dist_score);
+  ImGui::Text("Rotation: %.2f", values.weighted_rotation_score);
 
   ImGui::Columns();
 }

@@ -1,3 +1,8 @@
+#include <chrono>
+
+constexpr static inline std::chrono::milliseconds MAX_INITIAL_TIME{1000};
+constexpr static inline std::chrono::milliseconds MAX_TURN_TIME{100};
+
 #ifndef NDEBUG
 #define NDEBUG
 #include "random.hpp"
@@ -74,7 +79,7 @@ int main() {
   auto total = clock::duration::zero();
   ga.simulate_initial_generation(params);
   auto vals = ga.current_generation_results();
-  decltype(total/ga.current_generation_name()) avg;
+  decltype(total / ga.current_generation_name()) avg;
   auto min = clock::duration::max();
   auto max = clock::duration::min();
   const auto play = [&] {
@@ -105,17 +110,10 @@ int main() {
       start = now;
       total += dur;
       avg = decltype(avg){total.count() / ga.current_generation_name()};
-      if (total >= (200ms - avg)) {
+      if (total >= (MAX_INITIAL_TIME - avg)) {
         std::cerr << "Premature return because too slow, processed "
                   << ga.current_generation_name() << " generations\n";
         return best_idx;
-      }
-      if (ga.current_generation_name() % 2 == 0) {
-        /* std::cerr << "Generation " << ga.current_generation_name()
-          << " took: " << duration_cast<microseconds>(dur).count()
-          << "us\nTotal: " << duration_cast<microseconds>(total).count()
-          << "us\n";
-        std::cerr << "Best score this generation: " << best_score << "\n"; */
       }
       ga.next_generation();
       vals = ga.current_generation_results();
@@ -125,28 +123,37 @@ int main() {
   size_t idx = play();
   individual result = ga.current_generation()[idx];
   std::cerr << "Average time per generation: "
-            << duration_cast<microseconds>(avg).count()
-            << "us" << std::endl;
+            << duration_cast<microseconds>(avg).count() << "us" << std::endl;
   std::cerr << "Min generation time: "
-            << duration_cast<microseconds>(min).count()
-            << "us" << std::endl;
+            << duration_cast<microseconds>(min).count() << "us" << std::endl;
   std::cerr << "Max generation time: "
-            << duration_cast<microseconds>(max).count()
-            << "us" << std::endl;
+            << duration_cast<microseconds>(max).count() << "us" << std::endl;
 
   int current_frame = 0;
+  simulation_data current_data{
+      .position = {(float)x, (float)y},
+      .velocity = {(float)h_speed, (float)v_speed},
+      .fuel = fuel,
+      .rotate = rotate,
+      .power = power,
+  };
+
   while (1) {
-    simulation_data current_data{
-        .position = {(float)x, (float)y},
-        .velocity = {(float)h_speed, (float)v_speed},
-        .fuel = fuel,
-        .rotate = rotate,
-        .power = power,
-    };
-    auto d = result(current_data, points, current_frame++);
-    // Rotation is inverted on codingame
+    auto d = result(current_data, points, 0);
+
+    // We're not always forcing rotation to 0 correctly...
+    std::cerr << "(" << d.rotate << "," << d.power << ") ";
+    for (size_t i = 1; i < result.genes.size(); ++i) {
+      auto e = result(current_data, points, i);
+      std::cerr << "(" << e.rotate << "," << e.power << ") ";
+      result.genes[i - 1] = result.genes[i];
+    }
+    std::cerr << std::endl;
+
     std::cout << d.rotate << " " << d.power << "\n";
-    std::cin >> x >> y >> h_speed >> v_speed >> fuel >> rotate >> power;
+    std::cin >> current_data.position.x >> current_data.position.y >>
+        current_data.velocity.x >> current_data.velocity.y >>
+        current_data.fuel >> current_data.rotate >> current_data.power;
     std::cin.ignore();
   }
   randf.stop();
